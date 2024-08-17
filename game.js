@@ -19,7 +19,7 @@ function generateRandomPoints() {
     for (let i = 0; i < N; i++) {
         const x = Math.random() * (canvas.width - 2 * POINT_RADIUS) + POINT_RADIUS;
         const y = Math.random() * (canvas.height - 2 * POINT_RADIUS) + POINT_RADIUS;
-        points.push({ x, y, connected: [] });
+        points.push({ x, y, connected: false });
     }
 }
 
@@ -93,31 +93,42 @@ function addConnection(start, end) {
     totalLength += distanceBetweenPoints(start, end);
     scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
     
-    // Update connected points
-    let startPoint = points.find(p => distanceBetweenPoints(p, start) <= POINT_RADIUS);
-    let endPoint = points.find(p => distanceBetweenPoints(p, end) <= POINT_RADIUS);
-    
-    if (startPoint && endPoint) {
-        startPoint.connected.push(endPoint);
-        endPoint.connected.push(startPoint);
-    }
+    // Mark points as connected
+    points.forEach(point => {
+        if (distanceBetweenPoints(point, start) <= POINT_RADIUS || 
+            distanceBetweenPoints(point, end) <= POINT_RADIUS) {
+            point.connected = true;
+        }
+    });
 }
 
-// Check if all points are connected
+// Check if all points are connected in a single network
 function checkAllConnected() {
-    let visited = new Set();
-    function dfs(point) {
-        visited.add(point);
-        point.connected.forEach(connectedPoint => {
-            if (!visited.has(connectedPoint)) {
-                dfs(connectedPoint);
-            }
-        });
+    if (points.some(point => !point.connected)) {
+        return false;  // If any point is not connected, return false
     }
 
-    dfs(points[0]);
+    // Use a flood fill algorithm to check if all connections form a single network
+    let visited = new Set();
+    let stack = [connections[0].start];  // Start from the first connection
 
-    return visited.size === points.length;
+    while (stack.length > 0) {
+        let current = stack.pop();
+        if (!visited.has(current)) {
+            visited.add(current);
+            // Add all points connected to the current point to the stack
+            connections.forEach(conn => {
+                if (conn.start === current && !visited.has(conn.end)) {
+                    stack.push(conn.end);
+                } else if (conn.end === current && !visited.has(conn.start)) {
+                    stack.push(conn.start);
+                }
+            });
+        }
+    }
+
+    // Check if all connection endpoints were visited
+    return connections.every(conn => visited.has(conn.start) && visited.has(conn.end));
 }
 
 // Handle mouse down event
@@ -154,7 +165,7 @@ function handleMouseUp(event) {
             addConnection(dragStart, dragEnd);
             if (checkAllConnected()) {
                 setTimeout(() => {
-                    alert(`Congratulations! You've connected all points. Total Length: ${totalLength.toFixed(2)}`);
+                    alert(`Congratulations! You've connected all points in a single network. Total Length: ${totalLength.toFixed(2)}`);
                 }, 100);
                 canvas.removeEventListener('mousedown', handleMouseDown);
                 canvas.removeEventListener('mousemove', handleMouseMove);
