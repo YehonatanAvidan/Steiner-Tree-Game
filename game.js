@@ -12,13 +12,12 @@ let totalLength = 0;
 let isDragging = false;
 let dragStart = null;
 let dragEnd = null;
-let connectedGraph = []; // List to track connected points
+let connectedGraph = []; // List of connected points
 
 // Generate random points
 function generateRandomPoints() {
     points = [];
     connections = [];
-    connectedGraph = [];
     for (let i = 0; i < N; i++) {
         const x = Math.random() * (canvas.width - 2 * POINT_RADIUS) + POINT_RADIUS;
         const y = Math.random() * (canvas.height - 2 * POINT_RADIUS) + POINT_RADIUS;
@@ -102,75 +101,40 @@ function addConnection(start, end) {
     const snappedStart = findClosestPoint(start) || start;
     const snappedEnd = findClosestPoint(end) || end;
 
-    // Add new point only if snappedEnd is not an existing point
+    // Add intermediate points if necessary
     if (!points.some(p => p.x === snappedEnd.x && p.y === snappedEnd.y)) {
         const newPoint = { ...snappedEnd, connected: false, isIntermediate: true, id: points.length };
         points.push(newPoint);
-
-        // Color the new point green if the start point is already in connectedGraph
-        if (connectedGraph.includes(snappedStart)) {
-            connectedGraph.push(newPoint);
-            colorConnectedPoints(newPoint);
-        }
     }
 
-    // Ensure that the connection starts from an existing point
-    if (points.some(p => p.x === snappedStart.x && p.y === snappedStart.y)) {
-        connections.push({ start: snappedStart, end: snappedEnd });
-        totalLength += distanceBetweenPoints(snappedStart, snappedEnd);
-        scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
+    connections.push({ start: snappedStart, end: snappedEnd });
+    totalLength += distanceBetweenPoints(snappedStart, snappedEnd);
+    scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
 
-        // Check if the end point should be added to the connected graph
-        if (connectedGraph.includes(snappedStart)) {
-            if (!points.some(p => p.x === snappedEnd.x && p.y === snappedEnd.y)) {
-                const newPoint = { ...snappedEnd, connected: false, isIntermediate: true, id: points.length };
-                points.push(newPoint);
-                connectedGraph.push(newPoint);
-                colorConnectedPoints(newPoint);
-            } else if (!connectedGraph.includes(snappedEnd)) {
-                connectedGraph.push(snappedEnd);
-                colorConnectedPoints(snappedEnd);
-            }
-        }
-
-        // Color the start point if the end point is already green
-        if (connectedGraph.includes(snappedEnd) && !connectedGraph.includes(snappedStart)) {
-            connectedGraph.push(snappedStart);
-            colorConnectedPoints(snappedStart);
-        }
-
-        updateConnectedPoints();
-    }
-}
-
-// Color all points connected to the given point
-function colorConnectedPoints(startPoint) {
-    const visited = new Set();
-    const queue = [startPoint];
-
-    while (queue.length > 0) {
-        const point = queue.shift();
-        if (!visited.has(point)) {
-            visited.add(point);
-            connectedGraph.push(point);
-
-            // Mark the point as connected and color it green
-            point.connected = true;
-
-            // Add connected points to the queue
-            connections.forEach(conn => {
-                if (conn.start === point && !visited.has(conn.end)) {
-                    queue.push(conn.end);
-                } else if (conn.end === point && !visited.has(conn.start)) {
-                    queue.push(conn.start);
-                }
-            });
-        }
-    }
+    updateConnectedPoints();
 }
 
 // Update connected status of all points
 function updateConnectedPoints() {
+    if (connectedGraph.length === 0) {
+        // Add the start point of the first connection to connectedGraph and color it green
+        connectedGraph.push(dragStart);
+        dragStart.connected = true;
+    }
+
+    connections.forEach(conn => {
+        if (conn.start.connected || conn.end.connected) {
+            if (!conn.start.connected) {
+                conn.start.connected = true;
+                connectedGraph.push(conn.start);
+            }
+            if (!conn.end.connected) {
+                conn.end.connected = true;
+                connectedGraph.push(conn.end);
+            }
+        }
+    });
+
     // Check if all points are connected and stop the game if true
     if (checkAllConnected()) {
         setTimeout(() => {
@@ -184,7 +148,7 @@ function updateConnectedPoints() {
 
 // Check if all points are connected
 function checkAllConnected() {
-    return points.every(point => connectedGraph.includes(point));
+    return points.every(point => point.connected);
 }
 
 // Handle mouse down event
@@ -228,6 +192,7 @@ function handleMouseUp(event) {
 function resetGame() {
     totalLength = 0;
     scoreElement.textContent = `Total Length: 0`;
+    connectedGraph = [];
     generateRandomPoints();
     connections = [];
     draw();
