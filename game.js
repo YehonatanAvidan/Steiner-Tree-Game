@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v5.6
+// Connect-the-Dots Game v5.7
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -141,17 +141,40 @@ function addConnection(start, end) {
                 connectedGraph.push(snappedEnd);
                 colorConnectedPoints(snappedEnd);
             }
-        } else if (connectedGraph.includes(snappedEnd)) {
-            if (!connectedGraph.includes(snappedStart)) {
-                connectedGraph.push(snappedStart);
-                colorConnectedPoints(snappedStart);
-            }
         }
 
-        // Ensure all points connected to the graph are included
+        // New logic: if the end point is in connectedGraph, add the start point too
+        if (connectedGraph.includes(snappedEnd) && !connectedGraph.includes(snappedStart)) {
+            connectedGraph.push(snappedStart);
+            colorConnectedPoints(snappedStart);
+        }
+
+        // Ensure all connected points are in connectedGraph
         ensureAllConnectedPoints();
+
         updateConnectedPoints();
     }
+}
+
+// Ensure all connected points are in connectedGraph
+function ensureAllConnectedPoints() {
+    let added;
+    do {
+        added = false;
+        let currentConnectedGraph = [...connectedGraph]; // Clone the current state of connectedGraph
+
+        currentConnectedGraph.forEach(point => {
+            connections.forEach(conn => {
+                if (conn.start === point && !connectedGraph.includes(conn.end)) {
+                    connectedGraph.push(conn.end);
+                    added = true;
+                } else if (conn.end === point && !connectedGraph.includes(conn.start)) {
+                    connectedGraph.push(conn.start);
+                    added = true;
+                }
+            });
+        });
+    } while (added);
 }
 
 // Color all points connected to the given point
@@ -175,33 +198,6 @@ function colorConnectedPoints(startPoint) {
             });
         }
     }
-}
-
-// Ensure all points connected to the graph are included
-function ensureAllConnectedPoints() {
-    let addedPoints;
-    do {
-        addedPoints = false;
-
-        // Create a copy of the current connectedGraph to iterate over
-        const currentConnected = [...connectedGraph];
-
-        currentConnected.forEach(point => {
-            connections.forEach(conn => {
-                // Check if the start point is connected to the current point
-                if (conn.start === point && !connectedGraph.includes(conn.end)) {
-                    connectedGraph.push(conn.end);
-                    addedPoints = true;
-                }
-
-                // Check if the end point is connected to the current point
-                if (conn.end === point && !connectedGraph.includes(conn.start)) {
-                    connectedGraph.push(conn.start);
-                    addedPoints = true;
-                }
-            });
-        });
-    } while (addedPoints);
 }
 
 // Update connected status of all points
@@ -269,4 +265,9 @@ function handleMouseUp(event) {
 // Reset the game
 function resetGame() {
     totalLength = 0;
-    score
+    scoreElement.textContent = `Total Length: 0`;
+    connectedGraph = []; // Reset connected graph
+    generateRandomPoints();
+    connections = [];
+    draw();
+    canvas.addEventListener
