@@ -4,16 +4,17 @@ const scoreElement = document.getElementById('score');
 const resetButton = document.getElementById('resetButton');
 const N = 10; // Number of random points
 let points = [];
+let connections = [];
 let totalLength = 0;
-let isDrawing = false;
 let lastPoint = null;
 
 function generateRandomPoints() {
     points = [];
+    connections = [];
     for (let i = 0; i < N; i++) {
         const x = Math.random() * canvas.width;
         const y = Math.random() * canvas.height;
-        points.push({ x, y });
+        points.push({ x, y, connected: [] });
     }
 }
 
@@ -53,13 +54,38 @@ function handleCanvasClick(event) {
     });
 
     if (clickedPoint) {
-        if (lastPoint) {
+        if (lastPoint && lastPoint !== clickedPoint) {
             drawLine(lastPoint, clickedPoint);
             totalLength += distanceBetweenPoints(lastPoint, clickedPoint);
             scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
+            // Mark the points as connected
+            lastPoint.connected.push(clickedPoint);
+            clickedPoint.connected.push(lastPoint);
         }
         lastPoint = clickedPoint;
     }
+
+    if (checkAllConnected()) {
+        alert(`Congratulations! You've connected all points. Total Length: ${totalLength.toFixed(2)}`);
+        canvas.removeEventListener('click', handleCanvasClick); // Stop the game
+    }
+}
+
+function checkAllConnected() {
+    // Perform a depth-first search (DFS) to check if all points are connected
+    let visited = new Set();
+    function dfs(point) {
+        visited.add(point);
+        point.connected.forEach(connectedPoint => {
+            if (!visited.has(connectedPoint)) {
+                dfs(connectedPoint);
+            }
+        });
+    }
+
+    dfs(points[0]);
+
+    return visited.size === points.length;
 }
 
 function resetGame() {
@@ -68,6 +94,7 @@ function resetGame() {
     scoreElement.textContent = `Total Length: 0`;
     generateRandomPoints();
     drawPoints();
+    canvas.addEventListener('click', handleCanvasClick); // Re-enable clicking
 }
 
 canvas.addEventListener('click', handleCanvasClick);
