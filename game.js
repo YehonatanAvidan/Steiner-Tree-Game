@@ -20,10 +20,19 @@ let firstConnectedPoint = null; // Track the first connected point
 function generateRandomPoints() {
     points = [];
     connections = [];
-    for (let i = 0; i < N; i++) {
+    const minDistance = POINT_RADIUS * 2; // Minimum distance between points to avoid overlap
+
+    while (points.length < N) {
         const x = Math.random() * (canvas.width - 2 * POINT_RADIUS) + POINT_RADIUS;
         const y = Math.random() * (canvas.height - 2 * POINT_RADIUS) + POINT_RADIUS;
-        points.push({ x, y, connected: false, id: i, isIntermediate: false });
+        const newPoint = { x, y, connected: false, id: points.length, isIntermediate: false };
+
+        // Check if the new point is too close to any existing point
+        const isTooClose = points.some(p => distanceBetweenPoints(p, newPoint) < minDistance);
+        
+        if (!isTooClose) {
+            points.push(newPoint);
+        }
     }
 }
 
