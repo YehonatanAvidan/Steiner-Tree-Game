@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v5.6
+// Connect-the-Dots Game v5.7
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -149,8 +149,32 @@ function addConnection(start, end) {
             colorConnectedPoints(snappedStart);
         }
 
+        // Ensure all connected points are in connectedGraph
+        ensureAllConnectedPoints();
+
         updateConnectedPoints();
     }
+}
+
+// Ensure all connected points are in connectedGraph
+function ensureAllConnectedPoints() {
+    let added;
+    do {
+        added = false;
+        let currentConnectedGraph = [...connectedGraph]; // Clone the current state of connectedGraph
+
+        currentConnectedGraph.forEach(point => {
+            connections.forEach(conn => {
+                if (conn.start === point && !connectedGraph.includes(conn.end)) {
+                    connectedGraph.push(conn.end);
+                    added = true;
+                } else if (conn.end === point && !connectedGraph.includes(conn.start)) {
+                    connectedGraph.push(conn.start);
+                    added = true;
+                }
+            });
+        });
+    } while (added);
 }
 
 // Color all points connected to the given point
@@ -246,12 +270,4 @@ function resetGame() {
     generateRandomPoints();
     connections = [];
     draw();
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseup', handleMouseUp);
-}
-
-resetButton.addEventListener('click', resetGame);
-
-// Initialize the game
-resetGame();
+    canvas.addEventListener
