@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v4.1
+// Connect-the-Dots Game v5.0
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -22,7 +22,7 @@ function generateRandomPoints() {
     for (let i = 0; i < N; i++) {
         const x = Math.random() * (canvas.width - 2 * POINT_RADIUS) + POINT_RADIUS;
         const y = Math.random() * (canvas.height - 2 * POINT_RADIUS) + POINT_RADIUS;
-        points.push({ x, y, connected: false });
+        points.push({ x, y, connected: false, id: i });
     }
 }
 
@@ -106,12 +106,48 @@ function addConnection(start, end) {
     totalLength += distanceBetweenPoints(snappedStart, snappedEnd);
     scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
     
-    // Mark points as connected if the line starts or ends on them
-    points.forEach(point => {
-        if (distanceBetweenPoints(point, snappedStart) <= POINT_RADIUS || 
-            distanceBetweenPoints(point, snappedEnd) <= POINT_RADIUS) {
-            point.connected = true;
+    updateConnectedPoints();
+}
+
+// Update connected status of all points
+function updateConnectedPoints() {
+    let connectedGroups = [];
+    
+    // Create initial groups for each connection
+    connections.forEach(conn => {
+        let startPoint = points.find(p => distanceBetweenPoints(p, conn.start) <= POINT_RADIUS);
+        let endPoint = points.find(p => distanceBetweenPoints(p, conn.end) <= POINT_RADIUS);
+        
+        if (startPoint && endPoint) {
+            let group = connectedGroups.find(g => g.includes(startPoint.id) || g.includes(endPoint.id));
+            if (group) {
+                group.push(startPoint.id, endPoint.id);
+            } else {
+                connectedGroups.push([startPoint.id, endPoint.id]);
+            }
         }
+    });
+    
+    // Merge overlapping groups
+    let merged;
+    do {
+        merged = false;
+        for (let i = 0; i < connectedGroups.length; i++) {
+            for (let j = i + 1; j < connectedGroups.length; j++) {
+                if (connectedGroups[i].some(id => connectedGroups[j].includes(id))) {
+                    connectedGroups[i] = [...new Set([...connectedGroups[i], ...connectedGroups[j]])];
+                    connectedGroups.splice(j, 1);
+                    merged = true;
+                    break;
+                }
+            }
+            if (merged) break;
+        }
+    } while (merged);
+    
+    // Mark points as connected
+    points.forEach(point => {
+        point.connected = connectedGroups.some(group => group.includes(point.id));
     });
 }
 
