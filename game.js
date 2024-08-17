@@ -1,5 +1,3 @@
-// Connect-the-Dots Game v5.4
-
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreElement = document.getElementById('score');
@@ -20,19 +18,11 @@ let connectedGraph = []; // List to track connected points
 function generateRandomPoints() {
     points = [];
     connections = [];
-    const minDistance = POINT_RADIUS * 2; // Minimum distance between points to avoid overlap
-
-    while (points.length < N) {
+    connectedGraph = [];
+    for (let i = 0; i < N; i++) {
         const x = Math.random() * (canvas.width - 2 * POINT_RADIUS) + POINT_RADIUS;
         const y = Math.random() * (canvas.height - 2 * POINT_RADIUS) + POINT_RADIUS;
-        const newPoint = { x, y, connected: false, id: points.length, isIntermediate: false };
-
-        // Check if the new point is too close to any existing point
-        const isTooClose = points.some(p => distanceBetweenPoints(p, newPoint) < minDistance);
-        
-        if (!isTooClose) {
-            points.push(newPoint);
-        }
+        points.push({ x, y, connected: false, id: i, isIntermediate: false });
     }
 }
 
@@ -62,7 +52,7 @@ function draw() {
     points.forEach(point => {
         ctx.beginPath();
         ctx.arc(point.x, point.y, point.isIntermediate ? SMALL_POINT_RADIUS : POINT_RADIUS, 0, Math.PI * 2);
-        ctx.fillStyle = connectedGraph.includes(point) ? 'green' : (point.isIntermediate ? 'black' : 'blue');
+        ctx.fillStyle = point.connected ? 'green' : (point.isIntermediate ? 'black' : 'blue');
         ctx.fill();
     });
 
@@ -164,6 +154,9 @@ function colorConnectedPoints(startPoint) {
             visited.add(point);
             connectedGraph.push(point);
 
+            // Mark the point as connected and color it green
+            point.connected = true;
+
             // Add connected points to the queue
             connections.forEach(conn => {
                 if (conn.start === point && !visited.has(conn.end)) {
@@ -176,10 +169,9 @@ function colorConnectedPoints(startPoint) {
     }
 }
 
-
 // Update connected status of all points
 function updateConnectedPoints() {
-    // Check if all points are in the connected graph
+    // Check if all points are connected and stop the game if true
     if (checkAllConnected()) {
         setTimeout(() => {
             alert(`Congratulations! You've connected all points. Total Length: ${totalLength.toFixed(2)}`);
@@ -190,7 +182,7 @@ function updateConnectedPoints() {
     }
 }
 
-// Check if all points are in the connected graph
+// Check if all points are connected
 function checkAllConnected() {
     return points.every(point => connectedGraph.includes(point));
 }
@@ -203,15 +195,8 @@ function handleMouseDown(event) {
         y: event.clientY - rect.top
     };
 
-    // Only start dragging if the clicked point is on an existing point
-    const closestPoint = findClosestPoint(clickPoint);
-    if (closestPoint && distanceBetweenPoints(clickPoint, closestPoint) <= POINT_RADIUS) {
-        if (connectedGraph.length === 0) {
-            connectedGraph.push(closestPoint); // Add the first point to connectedGraph
-        }
-        dragStart = closestPoint;
-        isDragging = true;
-    }
+    dragStart = findClosestPoint(clickPoint) || clickPoint;
+    isDragging = true;
 }
 
 // Handle mouse move event
@@ -243,7 +228,6 @@ function handleMouseUp(event) {
 function resetGame() {
     totalLength = 0;
     scoreElement.textContent = `Total Length: 0`;
-    connectedGraph = []; // Reset connected graph
     generateRandomPoints();
     connections = [];
     draw();
