@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v5.5
+// Connect-the-Dots Game v5.6
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -141,6 +141,12 @@ function addConnection(start, end) {
                 connectedGraph.push(snappedEnd);
                 colorConnectedPoints(snappedEnd);
             }
+        }
+
+        // New logic: if the end point is in connectedGraph, add the start point too
+        if (connectedGraph.includes(snappedEnd) && !connectedGraph.includes(snappedStart)) {
+            connectedGraph.push(snappedStart);
+            colorConnectedPoints(snappedStart);
         }
 
         updateConnectedPoints();
