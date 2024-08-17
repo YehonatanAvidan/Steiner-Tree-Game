@@ -6,9 +6,9 @@ const N = 10; // Number of random points
 let points = [];
 let connections = [];
 let totalLength = 0;
-let lastPoint = null;
 let isDragging = false;
-let tempLineStart = null;
+let dragStart = null;
+let dragEnd = null;
 
 // Generate random points
 function generateRandomPoints() {
@@ -21,21 +21,35 @@ function generateRandomPoints() {
     }
 }
 
-// Draw all points
-function drawPoints() {
+// Draw all points and connections
+function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw connections
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 2;
+    connections.forEach(conn => {
+        ctx.beginPath();
+        ctx.moveTo(conn.start.x, conn.start.y);
+        ctx.lineTo(conn.end.x, conn.end.y);
+        ctx.stroke();
+    });
+    
+    // Draw points
     ctx.fillStyle = 'blue';
     points.forEach(point => {
         ctx.beginPath();
         ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
         ctx.fill();
     });
-    if (isDragging && tempLineStart) {
+    
+    // Draw drag line
+    if (isDragging && dragStart && dragEnd) {
         ctx.strokeStyle = 'gray';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(tempLineStart.x, tempLineStart.y);
-        ctx.lineTo(mouseX, mouseY);
+        ctx.moveTo(dragStart.x, dragStart.y);
+        ctx.lineTo(dragEnd.x, dragEnd.y);
         ctx.stroke();
     }
 }
@@ -45,54 +59,19 @@ function distanceBetweenPoints(p1, p2) {
     return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
 }
 
-// Draw a line between two points
-function drawLine(p1, p2) {
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(p1.x, p1.y);
-    ctx.lineTo(p2.x, p2.y);
-    ctx.stroke();
-}
-
-// Handle canvas click to start or end a line
-function handleCanvasClick(event) {
-    const rect = canvas.getBoundingClientRect();
-    mouseX = event.clientX - rect.left;
-    mouseY = event.clientY - rect.top;
-
-    let clickedPoint = null;
-    points.forEach(point => {
-        if (Math.abs(point.x - mouseX) < 10 && Math.abs(point.y - mouseY) < 10) {
-            clickedPoint = point;
-        }
-    });
-
-    if (clickedPoint) {
-        if (lastPoint && lastPoint !== clickedPoint) {
-            drawLine(lastPoint, clickedPoint);
-            totalLength += distanceBetweenPoints(lastPoint, clickedPoint);
-            scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
-            // Mark the points as connected
-            lastPoint.connected.push(clickedPoint);
-            clickedPoint.connected.push(lastPoint);
-            lastPoint = null;
-            if (checkAllConnected()) {
-                setTimeout(() => {
-                    alert(`Congratulations! You've connected all points. Total Length: ${totalLength.toFixed(2)}`);
-                }, 100); // Delay to ensure the last line is rendered
-                canvas.removeEventListener('click', handleCanvasClick); // Stop the game
-            }
-        } else {
-            lastPoint = clickedPoint;
-        }
-    } else {
-        if (lastPoint) {
-            drawLine(lastPoint, { x: mouseX, y: mouseY });
-            totalLength += distanceBetweenPoints(lastPoint, { x: mouseX, y: mouseY });
-            scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
-            lastPoint = { x: mouseX, y: mouseY }; // Update lastPoint to new point
-        }
+// Add a new connection
+function addConnection(start, end) {
+    connections.push({ start, end });
+    totalLength += distanceBetweenPoints(start, end);
+    scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
+    
+    // Update connected points
+    let startPoint = points.find(p => Math.abs(p.x - start.x) < 5 && Math.abs(p.y - start.y) < 5);
+    let endPoint = points.find(p => Math.abs(p.x - end.x) < 5 && Math.abs(p.y - end.y) < 5);
+    
+    if (startPoint && endPoint) {
+        startPoint.connected.push(endPoint);
+        endPoint.connected.push(startPoint);
     }
 }
 
@@ -113,75 +92,61 @@ function checkAllConnected() {
     return visited.size === points.length;
 }
 
-// Handle mouse down event to start dragging a line
+// Handle mouse down event
 function handleMouseDown(event) {
     const rect = canvas.getBoundingClientRect();
-    mouseX = event.clientX - rect.left;
-    mouseY = event.clientY - rect.top;
-
-    let clickedPoint = null;
-    points.forEach(point => {
-        if (Math.abs(point.x - mouseX) < 10 && Math.abs(point.y - mouseY) < 10) {
-            clickedPoint = point;
-        }
-    });
-
-    if (clickedPoint) {
-        lastPoint = clickedPoint;
-        isDragging = true;
-        tempLineStart = { x: clickedPoint.x, y: clickedPoint.y };
-    }
+    dragStart = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+    };
+    isDragging = true;
 }
 
-// Handle mouse move event to update the temporary line while dragging
+// Handle mouse move event
 function handleMouseMove(event) {
     if (isDragging) {
         const rect = canvas.getBoundingClientRect();
-        mouseX = event.clientX - rect.left;
-        mouseY = event.clientY - rect.top;
-        drawPoints();
-        drawLine(tempLineStart, { x: mouseX, y: mouseY });
+        dragEnd = {
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top
+        };
+        draw();
     }
 }
 
-// Handle mouse up event to finish dragging and draw the final line
+// Handle mouse up event
 function handleMouseUp(event) {
     if (isDragging) {
         isDragging = false;
-        const rect = canvas.getBoundingClientRect();
-        mouseX = event.clientX - rect.left;
-        mouseY = event.clientY - rect.top;
-        if (lastPoint) {
-            drawLine(lastPoint, { x: mouseX, y: mouseY });
-            totalLength += distanceBetweenPoints(lastPoint, { x: mouseX, y: mouseY });
-            scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
-            lastPoint = { x: mouseX, y: mouseY }; // Update lastPoint to new point
+        if (dragStart && dragEnd) {
+            addConnection(dragStart, dragEnd);
+            if (checkAllConnected()) {
+                setTimeout(() => {
+                    alert(`Congratulations! You've connected all points. Total Length: ${totalLength.toFixed(2)}`);
+                }, 100);
+                canvas.removeEventListener('mousedown', handleMouseDown);
+                canvas.removeEventListener('mousemove', handleMouseMove);
+                canvas.removeEventListener('mouseup', handleMouseUp);
+            }
         }
-        if (checkAllConnected()) {
-            setTimeout(() => {
-                alert(`Congratulations! You've connected all points. Total Length: ${totalLength.toFixed(2)}`);
-            }, 100); // Delay to ensure the last line is rendered
-            canvas.removeEventListener('click', handleCanvasClick); // Stop the game
-        }
+        dragStart = null;
+        dragEnd = null;
+        draw();
     }
 }
 
 // Reset the game
 function resetGame() {
     totalLength = 0;
-    lastPoint = null;
-    tempLineStart = null;
-    isDragging = false;
     scoreElement.textContent = `Total Length: 0`;
     generateRandomPoints();
-    drawPoints();
-    canvas.addEventListener('click', handleCanvasClick);
+    connections = [];
+    draw();
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', handleMouseUp);
 }
 
-canvas.addEventListener('click', handleCanvasClick);
 resetButton.addEventListener('click', resetGame);
 
 // Initialize the game
