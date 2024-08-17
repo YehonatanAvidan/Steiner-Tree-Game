@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v5.3
+// Connect-the-Dots Game v5.4
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -156,6 +156,16 @@ function updateConnectedPoints() {
     points.forEach(point => {
         point.connected = visited.has(point.id);
     });
+
+    // Check if all points are connected and stop the game if true
+    if (checkAllConnected()) {
+        setTimeout(() => {
+            alert(`Congratulations! You've connected all points. Total Length: ${totalLength.toFixed(2)}`);
+        }, 100);
+        canvas.removeEventListener('mousedown', handleMouseDown);
+        canvas.removeEventListener('mousemove', handleMouseMove);
+        canvas.removeEventListener('mouseup', handleMouseUp);
+    }
 }
 
 // Check if all points are connected
@@ -193,14 +203,6 @@ function handleMouseUp(event) {
         isDragging = false;
         if (dragStart && dragEnd) {
             addConnection(dragStart, dragEnd);
-            if (checkAllConnected()) {
-                setTimeout(() => {
-                    alert(`Congratulations! You've connected all points. Total Length: ${totalLength.toFixed(2)}`);
-                }, 100);
-                canvas.removeEventListener('mousedown', handleMouseDown);
-                canvas.removeEventListener('mousemove', handleMouseMove);
-                canvas.removeEventListener('mouseup', handleMouseUp);
-            }
         }
         dragStart = null;
         dragEnd = null;
