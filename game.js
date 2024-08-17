@@ -1,3 +1,5 @@
+// Connect-the-Dots Game v4.0
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreElement = document.getElementById('score');
@@ -38,10 +40,10 @@ function draw() {
     });
     
     // Draw points
-    ctx.fillStyle = 'blue';
     points.forEach(point => {
         ctx.beginPath();
         ctx.arc(point.x, point.y, POINT_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = point.connected ? 'green' : 'blue';
         ctx.fill();
     });
     
@@ -59,6 +61,38 @@ function draw() {
 // Calculate distance between two points
 function distanceBetweenPoints(p1, p2) {
     return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
+}
+
+// Calculate distance from a point to a line segment
+function distanceToLineSegment(point, lineStart, lineEnd) {
+    const A = point.x - lineStart.x;
+    const B = point.y - lineStart.y;
+    const C = lineEnd.x - lineStart.x;
+    const D = lineEnd.y - lineStart.y;
+
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = -1;
+    if (lenSq !== 0) param = dot / lenSq;
+
+    let xx, yy;
+
+    if (param < 0) {
+        xx = lineStart.x;
+        yy = lineStart.y;
+    }
+    else if (param > 1) {
+        xx = lineEnd.x;
+        yy = lineEnd.y;
+    }
+    else {
+        xx = lineStart.x + param * C;
+        yy = lineStart.y + param * D;
+    }
+
+    const dx = point.x - xx;
+    const dy = point.y - yy;
+    return Math.sqrt(dx * dx + dy * dy);
 }
 
 // Find the closest valid starting point (dot or end of existing line)
@@ -93,42 +127,17 @@ function addConnection(start, end) {
     totalLength += distanceBetweenPoints(start, end);
     scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
     
-    // Mark points as connected
+    // Check for dots near the new line and mark them as connected
     points.forEach(point => {
-        if (distanceBetweenPoints(point, start) <= POINT_RADIUS || 
-            distanceBetweenPoints(point, end) <= POINT_RADIUS) {
+        if (distanceToLineSegment(point, start, end) <= POINT_RADIUS) {
             point.connected = true;
         }
     });
 }
 
-// Check if all points are connected in a single network
+// Check if all points are connected
 function checkAllConnected() {
-    if (points.some(point => !point.connected)) {
-        return false;  // If any point is not connected, return false
-    }
-
-    // Use a flood fill algorithm to check if all connections form a single network
-    let visited = new Set();
-    let stack = [connections[0].start];  // Start from the first connection
-
-    while (stack.length > 0) {
-        let current = stack.pop();
-        if (!visited.has(current)) {
-            visited.add(current);
-            // Add all points connected to the current point to the stack
-            connections.forEach(conn => {
-                if (conn.start === current && !visited.has(conn.end)) {
-                    stack.push(conn.end);
-                } else if (conn.end === current && !visited.has(conn.start)) {
-                    stack.push(conn.start);
-                }
-            });
-        }
-    }
-
-    // Check if all connection endpoints were visited
-    return connections.every(conn => visited.has(conn.start) && visited.has(conn.end));
+    return points.every(point => point.connected);
 }
 
 // Handle mouse down event
@@ -165,7 +174,7 @@ function handleMouseUp(event) {
             addConnection(dragStart, dragEnd);
             if (checkAllConnected()) {
                 setTimeout(() => {
-                    alert(`Congratulations! You've connected all points in a single network. Total Length: ${totalLength.toFixed(2)}`);
+                    alert(`Congratulations! You've connected all points. Total Length: ${totalLength.toFixed(2)}`);
                 }, 100);
                 canvas.removeEventListener('mousedown', handleMouseDown);
                 canvas.removeEventListener('mousemove', handleMouseMove);
