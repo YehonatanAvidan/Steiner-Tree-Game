@@ -155,35 +155,27 @@ function addConnection(start, end) {
         updateConnectedPoints();
     }
 }
+
 // Ensure all connected points are in connectedGraph
 function ensureAllConnectedPoints() {
-    let addedPoints;
+    let added;
     do {
-        addedPoints = false;
+        added = false;
+        let currentConnectedGraph = [...connectedGraph]; // Clone the current state of connectedGraph
 
-        // Create a copy of the current connectedGraph to iterate over
-        const currentConnected = [...connectedGraph];
-
-        currentConnected.forEach(point => {
+        currentConnectedGraph.forEach(point => {
             connections.forEach(conn => {
-                // Check if the start point is connected to the current point
                 if (conn.start === point && !connectedGraph.includes(conn.end)) {
                     connectedGraph.push(conn.end);
-                    addedPoints = true;
-                }
-
-                // Check if the end point is connected to the current point
-                if (conn.end === point && !connectedGraph.includes(conn.start)) {
+                    added = true;
+                } else if (conn.end === point && !connectedGraph.includes(conn.start)) {
                     connectedGraph.push(conn.start);
-                    addedPoints = true;
+                    added = true;
                 }
             });
         });
-    } while (addedPoints);
+    } while (added);
 }
-
-// Ensure all connected points are in connectedGraph
-
 
 // Color all points connected to the given point
 function colorConnectedPoints(startPoint) {
@@ -278,4 +270,20 @@ function resetGame() {
     generateRandomPoints();
     connections = [];
     draw();
-    canvas.addEventListener
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
+}
+
+// Initialize the game
+function init() {
+    generateRandomPoints();
+    draw();
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
+    resetButton.addEventListener('click', resetGame);
+}
+
+// Start the game
+init();
