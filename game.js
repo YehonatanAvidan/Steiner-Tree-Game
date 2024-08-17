@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v5.8
+// Connect-the-Dots Game v5.4
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -23,7 +23,7 @@ function generateRandomPoints() {
     for (let i = 0; i < N; i++) {
         const x = Math.random() * (canvas.width - 2 * POINT_RADIUS) + POINT_RADIUS;
         const y = Math.random() * (canvas.height - 2 * POINT_RADIUS) + POINT_RADIUS;
-        points.push({ x, y, connected: false, id: i });
+        points.push({ x, y, connected: false, id: i, isIntermediate: false });
     }
 }
 
@@ -52,8 +52,8 @@ function draw() {
     // Draw points
     points.forEach(point => {
         ctx.beginPath();
-        ctx.arc(point.x, point.y, POINT_RADIUS, 0, Math.PI * 2);
-        ctx.fillStyle = point.connected ? 'green' : 'blue';
+        ctx.arc(point.x, point.y, point.isIntermediate ? SMALL_POINT_RADIUS : POINT_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = point.connected ? 'green' : (point.isIntermediate ? 'black' : 'blue');
         ctx.fill();
     });
 
@@ -86,6 +86,14 @@ function findClosestPoint(point) {
         }
     });
 
+    connections.forEach(conn => {
+        const distanceToEnd = distanceBetweenPoints(point, conn.end);
+        if (distanceToEnd < minDistance && distanceToEnd <= SNAP_DISTANCE) {
+            minDistance = distanceToEnd;
+            closestPoint = conn.end;
+        }
+    });
+
     return closestPoint;
 }
 
@@ -95,64 +103,62 @@ function addConnection(start, end) {
     const snappedStart = findClosestPoint(start) || start;
     const snappedEnd = findClosestPoint(end) || end;
 
+    // Add intermediate points if necessary
+    if (!points.some(p => p.x === snappedStart.x && p.y === snappedStart.y)) {
+        const newPoint = { ...snappedStart, connected: false, isIntermediate: true, id: points.length };
+        points.push(newPoint);
+        firstConnectedPoint = firstConnectedPoint || newPoint; // Set the first connected point
+    }
+    if (!points.some(p => p.x === snappedEnd.x && p.y === snappedEnd.y)) {
+        const newPoint = { ...snappedEnd, connected: false, isIntermediate: true, id: points.length };
+        points.push(newPoint);
+        firstConnectedPoint = firstConnectedPoint || newPoint; // Set the first connected point
+    }
+
     connections.push({ start: snappedStart, end: snappedEnd });
     totalLength += distanceBetweenPoints(snappedStart, snappedEnd);
     scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
-
-    if (!firstConnectedPoint) {
-        firstConnectedPoint = snappedStart;
-        firstConnectedPoint.connected = true;
-    }
-
-    if (snappedEnd !== snappedStart && snappedEnd !== end) {
-        snappedEnd.connected = true;
-    }
 
     updateConnectedPoints();
 }
 
 // Update connected status of all points
 function updateConnectedPoints() {
-    let connectedGroups = [];
+    // Initialize an adjacency list to represent the graph
+    let adjacencyList = points.map(() => []);
 
     connections.forEach(conn => {
         let startPoint = points.find(p => distanceBetweenPoints(p, conn.start) <= POINT_RADIUS);
         let endPoint = points.find(p => distanceBetweenPoints(p, conn.end) <= POINT_RADIUS);
 
         if (startPoint && endPoint) {
-            let group = connectedGroups.find(g => g.includes(startPoint.id) || g.includes(endPoint.id));
-            if (group) {
-                group.push(startPoint.id, endPoint.id);
-            } else {
-                connectedGroups.push([startPoint.id, endPoint.id]);
-            }
+            adjacencyList[startPoint.id].push(endPoint.id);
+            adjacencyList[endPoint.id].push(startPoint.id);
         }
     });
 
-    // Merge overlapping groups
-    let merged;
-    do {
-        merged = false;
-        for (let i = 0; i < connectedGroups.length; i++) {
-            for (let j = i + 1; j < connectedGroups.length; j++) {
-                if (connectedGroups[i].some(id => connectedGroups[j].includes(id))) {
-                    connectedGroups[i] = [...new Set([...connectedGroups[i], ...connectedGroups[j]])];
-                    connectedGroups.splice(j, 1);
-                    merged = true;
-                    break;
-                }
+    // Perform DFS to find all connected points starting from the first connected point
+    let visited = new Set();
+    function dfs(pointId) {
+        visited.add(pointId);
+        adjacencyList[pointId].forEach(neighborId => {
+            if (!visited.has(neighborId)) {
+                dfs(neighborId);
             }
-            if (merged) break;
-        }
-    } while (merged);
+        });
+    }
 
-    // Mark points as connected
+    if (firstConnectedPoint) {
+        dfs(firstConnectedPoint.id);
+    }
+
+    // Mark points as connected if they are in the visited set
     points.forEach(point => {
-        point.connected = connectedGroups.some(group => group.includes(point.id));
+        point.connected = visited.has(point.id);
     });
 
     // Check if all points are connected and stop the game if true
-    if (checkAllConnected() || allPointsDirectlyConnected()) {
+    if (checkAllConnected()) {
         setTimeout(() => {
             alert(`Congratulations! You've connected all points. Total Length: ${totalLength.toFixed(2)}`);
         }, 100);
@@ -165,24 +171,6 @@ function updateConnectedPoints() {
 // Check if all points are connected
 function checkAllConnected() {
     return points.every(point => point.connected);
-}
-
-// Check if all points are directly connected in one connected graph
-function allPointsDirectlyConnected() {
-    const visited = new Set();
-    function dfs(point) {
-        visited.add(point);
-        connections.forEach(conn => {
-            if (conn.start === point && !visited.has(conn.end)) {
-                dfs(conn.end);
-            } else if (conn.end === point && !visited.has(conn.start)) {
-                dfs(conn.start);
-            }
-        });
-    }
-
-    dfs(firstConnectedPoint);
-    return visited.size === points.length;
 }
 
 // Handle mouse down event
