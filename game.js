@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v6.33
+// Connect-the-Dots Game v6.34
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -46,14 +46,17 @@ function draw() {
     connections.forEach(conn => {
         ctx.beginPath();
         ctx.moveTo(conn.start.x, conn.start.y);
+        if (conn.intermediate) {
+            ctx.lineTo(conn.intermediate.x, conn.intermediate.y);
+        }
         ctx.lineTo(conn.end.x, conn.end.y);
         ctx.stroke();
 
-        // Draw small dot at the end of the line if it's not on a blue or green dot
-        if (!points.some(p => distanceBetweenPoints(p, conn.end) <= POINT_RADIUS)) {
+        // Draw small dot for intermediate point
+        if (conn.intermediate) {
             ctx.fillStyle = 'black';
             ctx.beginPath();
-            ctx.arc(conn.end.x, conn.end.y, SMALL_POINT_RADIUS, 0, Math.PI * 2);
+            ctx.arc(conn.intermediate.x, conn.intermediate.y, SMALL_POINT_RADIUS, 0, Math.PI * 2);
             ctx.fill();
         }
     });
@@ -61,8 +64,8 @@ function draw() {
     // Draw points
     points.forEach(point => {
         ctx.beginPath();
-        ctx.arc(point.x, point.y, point.isIntermediate ? SMALL_POINT_RADIUS : POINT_RADIUS, 0, Math.PI * 2);
-        ctx.fillStyle = connectedGraph.includes(point) ? 'green' : (point.isIntermediate ? 'black' : 'blue');
+        ctx.arc(point.x, point.y, POINT_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = connectedGraph.includes(point) ? 'green' : 'blue';
         ctx.fill();
     });
 
@@ -96,6 +99,13 @@ function findClosestPoint(point) {
     });
 
     connections.forEach(conn => {
+        if (conn.intermediate) {
+            const distanceToIntermediate = distanceBetweenPoints(point, conn.intermediate);
+            if (distanceToIntermediate < minDistance && distanceToIntermediate <= SNAP_DISTANCE) {
+                minDistance = distanceToIntermediate;
+                closestPoint = conn.intermediate;
+            }
+        }
         const distanceToEnd = distanceBetweenPoints(point, conn.end);
         if (distanceToEnd < minDistance && distanceToEnd <= SNAP_DISTANCE) {
             minDistance = distanceToEnd;
@@ -112,40 +122,37 @@ function addConnection(start, end) {
     const snappedStart = findClosestPoint(start) || start;
     const snappedEnd = findClosestPoint(end) || end;
 
-    // Add new point only if snappedEnd is not an existing point
-    if (!points.some(p => p.x === snappedEnd.x && p.y === snappedEnd.y)) {
-        const newPoint = { ...snappedEnd, connected: false, isIntermediate: true, id: points.length };
-        points.push(newPoint);
+    // Create a new connection
+    const newConnection = { start: snappedStart, end: snappedEnd };
 
-        // Color the new point green if the start point is already in connectedGraph
-        if (connectedGraph.includes(snappedStart)) {
-            connectedGraph.push(newPoint);
-            colorConnectedPoints(newPoint);
-        }
+    // Add intermediate point if snappedEnd is not an existing point
+    if (!points.some(p => p.x === snappedEnd.x && p.y === snappedEnd.y)) {
+        newConnection.intermediate = { ...snappedEnd, connected: false, isIntermediate: true, id: points.length };
     }
 
     // Ensure that the connection starts from an existing point
     if (points.some(p => p.x === snappedStart.x && p.y === snappedStart.y)) {
-        connections.push({ start: snappedStart, end: snappedEnd });
+        connections.push(newConnection);
         totalLength += distanceBetweenPoints(snappedStart, snappedEnd);
         scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
 
         // Check if the end point should be added to the connected graph
         if (connectedGraph.includes(snappedStart)) {
-            if (!points.some(p => p.x === snappedEnd.x && p.y === snappedEnd.y)) {
-                const newPoint = { ...snappedEnd, connected: false, isIntermediate: true, id: points.length };
-                points.push(newPoint);
-                connectedGraph.push(newPoint);
-                colorConnectedPoints(newPoint);
-            } else if (!connectedGraph.includes(snappedEnd)) {
-                connectedGraph.push(snappedEnd);
-                colorConnectedPoints(snappedEnd);
+            if (newConnection.intermediate) {
+                connectedGraph.push(newConnection.intermediate);
             }
+            if (!connectedGraph.includes(snappedEnd)) {
+                connectedGraph.push(snappedEnd);
+            }
+            colorConnectedPoints(snappedEnd);
         }
 
         // New logic: if the end point is in connectedGraph, add the start point too
         if (connectedGraph.includes(snappedEnd) && !connectedGraph.includes(snappedStart)) {
             connectedGraph.push(snappedStart);
+            if (newConnection.intermediate) {
+                connectedGraph.push(newConnection.intermediate);
+            }
             colorConnectedPoints(snappedStart);
         }
 
@@ -165,12 +172,24 @@ function ensureAllConnectedPoints() {
 
         currentConnectedGraph.forEach(point => {
             connections.forEach(conn => {
-                if (conn.start === point && !connectedGraph.includes(conn.end)) {
-                    connectedGraph.push(conn.end);
-                    added = true;
-                } else if (conn.end === point && !connectedGraph.includes(conn.start)) {
-                    connectedGraph.push(conn.start);
-                    added = true;
+                if (conn.start === point) {
+                    if (conn.intermediate && !connectedGraph.includes(conn.intermediate)) {
+                        connectedGraph.push(conn.intermediate);
+                        added = true;
+                    }
+                    if (!connectedGraph.includes(conn.end)) {
+                        connectedGraph.push(conn.end);
+                        added = true;
+                    }
+                } else if (conn.end === point) {
+                    if (conn.intermediate && !connectedGraph.includes(conn.intermediate)) {
+                        connectedGraph.push(conn.intermediate);
+                        added = true;
+                    }
+                    if (!connectedGraph.includes(conn.start)) {
+                        connectedGraph.push(conn.start);
+                        added = true;
+                    }
                 }
             });
         });
@@ -192,10 +211,12 @@ function colorConnectedPoints(startPoint) {
 
             // Add connected points to the queue
             connections.forEach(conn => {
-                if (conn.start === point && !visited.has(conn.end)) {
-                    queue.push(conn.end);
-                } else if (conn.end === point && !visited.has(conn.start)) {
-                    queue.push(conn.start);
+                if (conn.start === point) {
+                    if (conn.intermediate) queue.push(conn.intermediate);
+                    if (!visited.has(conn.end)) queue.push(conn.end);
+                } else if (conn.end === point) {
+                    if (conn.intermediate) queue.push(conn.intermediate);
+                    if (!visited.has(conn.start)) queue.push(conn.start);
                 }
             });
         }
