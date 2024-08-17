@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v5.5
+// Connect-the-Dots Game v5.1
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -23,7 +23,7 @@ function generateRandomPoints() {
     for (let i = 0; i < N; i++) {
         const x = Math.random() * (canvas.width - 2 * POINT_RADIUS) + POINT_RADIUS;
         const y = Math.random() * (canvas.height - 2 * POINT_RADIUS) + POINT_RADIUS;
-        points.push({ x, y, connected: false, id: i, isIntermediate: false });
+        points.push({ x, y, connected: false, id: i, isOriginal: true });
     }
 }
 
@@ -52,8 +52,8 @@ function draw() {
     // Draw points
     points.forEach(point => {
         ctx.beginPath();
-        ctx.arc(point.x, point.y, point.isIntermediate ? SMALL_POINT_RADIUS : POINT_RADIUS, 0, Math.PI * 2);
-        ctx.fillStyle = point.connected ? 'green' : (point.isIntermediate ? 'black' : 'blue');
+        ctx.arc(point.x, point.y, point.isOriginal ? POINT_RADIUS : SMALL_POINT_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = point.connected ? 'green' : (point.isOriginal ? 'blue' : 'black');
         ctx.fill();
     });
 
@@ -105,12 +105,12 @@ function addConnection(start, end) {
 
     // Add intermediate points if necessary
     if (!points.some(p => p.x === snappedStart.x && p.y === snappedStart.y)) {
-        const newPoint = { ...snappedStart, connected: false, isIntermediate: true, id: points.length };
+        const newPoint = { ...snappedStart, connected: false, isOriginal: false, id: points.length };
         points.push(newPoint);
         firstConnectedPoint = firstConnectedPoint || newPoint; // Set the first connected point
     }
     if (!points.some(p => p.x === snappedEnd.x && p.y === snappedEnd.y)) {
-        const newPoint = { ...snappedEnd, connected: false, isIntermediate: true, id: points.length };
+        const newPoint = { ...snappedEnd, connected: false, isOriginal: false, id: points.length };
         points.push(newPoint);
         firstConnectedPoint = firstConnectedPoint || newPoint; // Set the first connected point
     }
@@ -157,8 +157,8 @@ function updateConnectedPoints() {
         point.connected = visited.has(point.id);
     });
 
-    // Check if all points are connected and stop the game if true
-    if (checkAllConnected()) {
+    // Check if all original points are connected and stop the game if true
+    if (checkAllOriginalPointsConnected()) {
         setTimeout(() => {
             alert(`Congratulations! You've connected all points. Total Length: ${totalLength.toFixed(2)}`);
         }, 100);
@@ -168,9 +168,9 @@ function updateConnectedPoints() {
     }
 }
 
-// Check if all points are connected
-function checkAllConnected() {
-    return points.every(point => point.connected);
+// Check if all original points are connected
+function checkAllOriginalPointsConnected() {
+    return points.filter(point => point.isOriginal).every(point => point.connected);
 }
 
 // Handle mouse down event
