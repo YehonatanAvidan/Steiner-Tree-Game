@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v4.0
+// Connect-the-Dots Game v4.1
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -6,7 +6,8 @@ const scoreElement = document.getElementById('score');
 const resetButton = document.getElementById('resetButton');
 const N = 10; // Number of random points
 const POINT_RADIUS = 15; // Large point size
-const SNAP_DISTANCE = 20; // Distance to snap to existing points or line ends
+const SMALL_POINT_RADIUS = POINT_RADIUS / 2; // Size of endpoint dots
+const SNAP_DISTANCE = POINT_RADIUS * 1.5; // Distance to snap to points
 let points = [];
 let connections = [];
 let totalLength = 0;
@@ -37,6 +38,14 @@ function draw() {
         ctx.moveTo(conn.start.x, conn.start.y);
         ctx.lineTo(conn.end.x, conn.end.y);
         ctx.stroke();
+        
+        // Draw small dot at the end of the line if it's not on a blue dot
+        if (!points.some(p => distanceBetweenPoints(p, conn.end) <= POINT_RADIUS)) {
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(conn.end.x, conn.end.y, SMALL_POINT_RADIUS, 0, Math.PI * 2);
+            ctx.fill();
+        }
     });
     
     // Draw points
@@ -63,73 +72,44 @@ function distanceBetweenPoints(p1, p2) {
     return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
 }
 
-// Calculate distance from a point to a line segment
-function distanceToLineSegment(point, lineStart, lineEnd) {
-    const A = point.x - lineStart.x;
-    const B = point.y - lineStart.y;
-    const C = lineEnd.x - lineStart.x;
-    const D = lineEnd.y - lineStart.y;
-
-    const dot = A * C + B * D;
-    const lenSq = C * C + D * D;
-    let param = -1;
-    if (lenSq !== 0) param = dot / lenSq;
-
-    let xx, yy;
-
-    if (param < 0) {
-        xx = lineStart.x;
-        yy = lineStart.y;
-    }
-    else if (param > 1) {
-        xx = lineEnd.x;
-        yy = lineEnd.y;
-    }
-    else {
-        xx = lineStart.x + param * C;
-        yy = lineStart.y + param * D;
-    }
-
-    const dx = point.x - xx;
-    const dy = point.y - yy;
-    return Math.sqrt(dx * dx + dy * dy);
-}
-
-// Find the closest valid starting point (dot or end of existing line)
-function findClosestValidStart(point) {
-    let closestStart = null;
+// Find the closest point within snap distance
+function findClosestPoint(point) {
+    let closestPoint = null;
     let minDistance = Infinity;
     
-    // Check dots
     points.forEach(p => {
         const distance = distanceBetweenPoints(point, p);
         if (distance < minDistance && distance <= SNAP_DISTANCE) {
             minDistance = distance;
-            closestStart = p;
+            closestPoint = p;
         }
     });
     
-    // Check existing line ends
     connections.forEach(conn => {
         const distanceToEnd = distanceBetweenPoints(point, conn.end);
         if (distanceToEnd < minDistance && distanceToEnd <= SNAP_DISTANCE) {
             minDistance = distanceToEnd;
-            closestStart = conn.end;
+            closestPoint = conn.end;
         }
     });
     
-    return closestStart;
+    return closestPoint;
 }
 
 // Add a new connection
 function addConnection(start, end) {
-    connections.push({ start, end });
-    totalLength += distanceBetweenPoints(start, end);
+    // Snap start and end to closest points if within range
+    const snappedStart = findClosestPoint(start) || start;
+    const snappedEnd = findClosestPoint(end) || end;
+    
+    connections.push({ start: snappedStart, end: snappedEnd });
+    totalLength += distanceBetweenPoints(snappedStart, snappedEnd);
     scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
     
-    // Check for dots near the new line and mark them as connected
+    // Mark points as connected if the line starts or ends on them
     points.forEach(point => {
-        if (distanceToLineSegment(point, start, end) <= POINT_RADIUS) {
+        if (distanceBetweenPoints(point, snappedStart) <= POINT_RADIUS || 
+            distanceBetweenPoints(point, snappedEnd) <= POINT_RADIUS) {
             point.connected = true;
         }
     });
@@ -140,6 +120,18 @@ function checkAllConnected() {
     return points.every(point => point.connected);
 }
 
+// Check if all lines are connected to points or other lines
+function checkAllLinesConnected() {
+    return connections.every(conn => 
+        points.some(p => distanceBetweenPoints(p, conn.start) <= POINT_RADIUS) &&
+        (points.some(p => distanceBetweenPoints(p, conn.end) <= POINT_RADIUS) ||
+         connections.some(c => c !== conn && (
+             distanceBetweenPoints(c.start, conn.end) <= SMALL_POINT_RADIUS ||
+             distanceBetweenPoints(c.end, conn.end) <= SMALL_POINT_RADIUS
+         )))
+    );
+}
+
 // Handle mouse down event
 function handleMouseDown(event) {
     const rect = canvas.getBoundingClientRect();
@@ -148,10 +140,8 @@ function handleMouseDown(event) {
         y: event.clientY - rect.top
     };
     
-    dragStart = findClosestValidStart(clickPoint);
-    if (dragStart) {
-        isDragging = true;
-    }
+    dragStart = findClosestPoint(clickPoint) || clickPoint;
+    isDragging = true;
 }
 
 // Handle mouse move event
@@ -172,7 +162,7 @@ function handleMouseUp(event) {
         isDragging = false;
         if (dragStart && dragEnd) {
             addConnection(dragStart, dragEnd);
-            if (checkAllConnected()) {
+            if (checkAllConnected() && checkAllLinesConnected()) {
                 setTimeout(() => {
                     alert(`Congratulations! You've connected all points. Total Length: ${totalLength.toFixed(2)}`);
                 }, 100);
