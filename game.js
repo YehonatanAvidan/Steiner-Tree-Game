@@ -3,8 +3,8 @@ const ctx = canvas.getContext('2d');
 const scoreElement = document.getElementById('score');
 const resetButton = document.getElementById('resetButton');
 const N = 10; // Number of random points
-const POINT_RADIUS = 8; // Increased point size
-const SNAP_DISTANCE = 15; // Distance to snap to existing line ends
+const POINT_RADIUS = 15; // Large point size
+const SNAP_DISTANCE = 20; // Distance to snap to existing points or line ends
 let points = [];
 let connections = [];
 let totalLength = 0;
@@ -61,42 +61,41 @@ function distanceBetweenPoints(p1, p2) {
     return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
 }
 
-// Find the closest line end within snap distance
-function findClosestLineEnd(point) {
-    let closestEnd = null;
+// Find the closest valid starting point (dot or end of existing line)
+function findClosestValidStart(point) {
+    let closestStart = null;
     let minDistance = Infinity;
     
-    connections.forEach(conn => {
-        const distanceToStart = distanceBetweenPoints(point, conn.start);
-        const distanceToEnd = distanceBetweenPoints(point, conn.end);
-        
-        if (distanceToStart < minDistance && distanceToStart <= SNAP_DISTANCE) {
-            minDistance = distanceToStart;
-            closestEnd = conn.start;
-        }
-        
-        if (distanceToEnd < minDistance && distanceToEnd <= SNAP_DISTANCE) {
-            minDistance = distanceToEnd;
-            closestEnd = conn.end;
+    // Check dots
+    points.forEach(p => {
+        const distance = distanceBetweenPoints(point, p);
+        if (distance < minDistance && distance <= SNAP_DISTANCE) {
+            minDistance = distance;
+            closestStart = p;
         }
     });
     
-    return closestEnd;
+    // Check existing line ends
+    connections.forEach(conn => {
+        const distanceToEnd = distanceBetweenPoints(point, conn.end);
+        if (distanceToEnd < minDistance && distanceToEnd <= SNAP_DISTANCE) {
+            minDistance = distanceToEnd;
+            closestStart = conn.end;
+        }
+    });
+    
+    return closestStart;
 }
 
 // Add a new connection
 function addConnection(start, end) {
-    // Check if start or end is close to existing line ends and snap if necessary
-    const snappedStart = findClosestLineEnd(start) || start;
-    const snappedEnd = findClosestLineEnd(end) || end;
-    
-    connections.push({ start: snappedStart, end: snappedEnd });
-    totalLength += distanceBetweenPoints(snappedStart, snappedEnd);
+    connections.push({ start, end });
+    totalLength += distanceBetweenPoints(start, end);
     scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
     
     // Update connected points
-    let startPoint = points.find(p => distanceBetweenPoints(p, snappedStart) <= POINT_RADIUS);
-    let endPoint = points.find(p => distanceBetweenPoints(p, snappedEnd) <= POINT_RADIUS);
+    let startPoint = points.find(p => distanceBetweenPoints(p, start) <= POINT_RADIUS);
+    let endPoint = points.find(p => distanceBetweenPoints(p, end) <= POINT_RADIUS);
     
     if (startPoint && endPoint) {
         startPoint.connected.push(endPoint);
@@ -124,11 +123,15 @@ function checkAllConnected() {
 // Handle mouse down event
 function handleMouseDown(event) {
     const rect = canvas.getBoundingClientRect();
-    dragStart = {
+    const clickPoint = {
         x: event.clientX - rect.left,
         y: event.clientY - rect.top
     };
-    isDragging = true;
+    
+    dragStart = findClosestValidStart(clickPoint);
+    if (dragStart) {
+        isDragging = true;
+    }
 }
 
 // Handle mouse move event
