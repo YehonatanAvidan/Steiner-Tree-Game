@@ -112,23 +112,21 @@ function addConnection(start, end) {
     const snappedStart = findClosestPoint(start) || start;
     const snappedEnd = findClosestPoint(end) || end;
 
-    // Add intermediate points if necessary
-    if (!points.some(p => p.x === snappedStart.x && p.y === snappedStart.y)) {
-        const newPoint = { ...snappedStart, connected: false, isIntermediate: true, id: points.length };
-        points.push(newPoint);
-        firstConnectedPoint = firstConnectedPoint || newPoint; // Set the first connected point
-    }
+    // Add new point only if snappedEnd is not an existing point
     if (!points.some(p => p.x === snappedEnd.x && p.y === snappedEnd.y)) {
         const newPoint = { ...snappedEnd, connected: false, isIntermediate: true, id: points.length };
         points.push(newPoint);
         firstConnectedPoint = firstConnectedPoint || newPoint; // Set the first connected point
     }
 
-    connections.push({ start: snappedStart, end: snappedEnd });
-    totalLength += distanceBetweenPoints(snappedStart, snappedEnd);
-    scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
+    // Ensure that the connection starts from an existing point
+    if (points.some(p => p.x === snappedStart.x && p.y === snappedStart.y)) {
+        connections.push({ start: snappedStart, end: snappedEnd });
+        totalLength += distanceBetweenPoints(snappedStart, snappedEnd);
+        scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
 
-    updateConnectedPoints();
+        updateConnectedPoints();
+    }
 }
 
 // Update connected status of all points
@@ -190,8 +188,12 @@ function handleMouseDown(event) {
         y: event.clientY - rect.top
     };
 
-    dragStart = findClosestPoint(clickPoint) || clickPoint;
-    isDragging = true;
+    // Only start dragging if the clicked point is on an existing point
+    const closestPoint = findClosestPoint(clickPoint);
+    if (closestPoint && distanceBetweenPoints(clickPoint, closestPoint) <= POINT_RADIUS) {
+        dragStart = closestPoint;
+        isDragging = true;
+    }
 }
 
 // Handle mouse move event
