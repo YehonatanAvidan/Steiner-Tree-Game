@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v5.7
+// Connect-the-Dots Game v5.8
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -39,6 +39,14 @@ function draw() {
         ctx.moveTo(conn.start.x, conn.start.y);
         ctx.lineTo(conn.end.x, conn.end.y);
         ctx.stroke();
+
+        // Draw small dot at the end of the line if it's not on a blue or green dot
+        if (!points.some(p => distanceBetweenPoints(p, conn.end) <= POINT_RADIUS)) {
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(conn.end.x, conn.end.y, SMALL_POINT_RADIUS, 0, Math.PI * 2);
+            ctx.fill();
+        }
     });
 
     // Draw points
@@ -94,6 +102,10 @@ function addConnection(start, end) {
     if (!firstConnectedPoint) {
         firstConnectedPoint = snappedStart;
         firstConnectedPoint.connected = true;
+    }
+
+    if (snappedEnd !== snappedStart && snappedEnd !== end) {
+        snappedEnd.connected = true;
     }
 
     updateConnectedPoints();
