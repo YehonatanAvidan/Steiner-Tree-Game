@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v6.32
+// Connect-the-Dots Game v5.9
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -54,7 +54,7 @@ function draw() {
 
         // Draw small dot for intermediate point
         if (conn.intermediate) {
-            ctx.fillStyle = 'black';
+            ctx.fillStyle = connectedGraph.includes(conn.intermediate) ? 'green' : 'black';
             ctx.beginPath();
             ctx.arc(conn.intermediate.x, conn.intermediate.y, SMALL_POINT_RADIUS, 0, Math.PI * 2);
             ctx.fill();
@@ -136,91 +136,48 @@ function addConnection(start, end) {
         totalLength += distanceBetweenPoints(snappedStart, snappedEnd);
         scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
 
-        // Check if the end point should be added to the connected graph
-        if (connectedGraph.includes(snappedStart)) {
-            if (newConnection.intermediate) {
-                connectedGraph.push(newConnection.intermediate);
-            }
-            if (!connectedGraph.includes(snappedEnd)) {
-                connectedGraph.push(snappedEnd);
-            }
-            colorConnectedPoints(snappedEnd);
+        // Update connected graph
+        updateConnectedGraph(snappedStart);
+        updateConnectedGraph(snappedEnd);
+        if (newConnection.intermediate) {
+            updateConnectedGraph(newConnection.intermediate);
         }
-
-        // New logic: if the end point is in connectedGraph, add the start point too
-        if (connectedGraph.includes(snappedEnd) && !connectedGraph.includes(snappedStart)) {
-            connectedGraph.push(snappedStart);
-            if (newConnection.intermediate) {
-                connectedGraph.push(newConnection.intermediate);
-            }
-            colorConnectedPoints(snappedStart);
-        }
-
-        // Ensure all connected points are in connectedGraph
-        ensureAllConnectedPoints();
 
         updateConnectedPoints();
     }
 }
 
-// Ensure all connected points are in connectedGraph
-function ensureAllConnectedPoints() {
-    let added;
-    do {
-        added = false;
-        let currentConnectedGraph = [...connectedGraph]; // Clone the current state of connectedGraph
-
-        currentConnectedGraph.forEach(point => {
-            connections.forEach(conn => {
-                if (conn.start === point) {
-                    if (conn.intermediate && !connectedGraph.includes(conn.intermediate)) {
-                        connectedGraph.push(conn.intermediate);
-                        added = true;
-                    }
-                    if (!connectedGraph.includes(conn.end)) {
-                        connectedGraph.push(conn.end);
-                        added = true;
-                    }
-                } else if (conn.end === point) {
-                    if (conn.intermediate && !connectedGraph.includes(conn.intermediate)) {
-                        connectedGraph.push(conn.intermediate);
-                        added = true;
-                    }
-                    if (!connectedGraph.includes(conn.start)) {
-                        connectedGraph.push(conn.start);
-                        added = true;
-                    }
-                }
-            });
-        });
-    } while (added);
+// Update connected graph starting from a given point
+function updateConnectedGraph(startPoint) {
+    if (!connectedGraph.includes(startPoint)) {
+        const connectedPoints = findAllConnectedPoints(startPoint);
+        connectedGraph.push(...connectedPoints);
+    }
 }
 
-// Color all points connected to the given point
-function colorConnectedPoints(startPoint) {
+// Find all points connected to the given point
+function findAllConnectedPoints(startPoint) {
     const visited = new Set();
     const queue = [startPoint];
+    const connectedPoints = [];
 
     while (queue.length > 0) {
         const point = queue.shift();
         if (!visited.has(point)) {
             visited.add(point);
-            if (!connectedGraph.includes(point)) {
-                connectedGraph.push(point);
-            }
+            connectedPoints.push(point);
 
-            // Add connected points to the queue
             connections.forEach(conn => {
-                if (conn.start === point) {
-                    if (conn.intermediate) queue.push(conn.intermediate);
-                    if (!visited.has(conn.end)) queue.push(conn.end);
-                } else if (conn.end === point) {
-                    if (conn.intermediate) queue.push(conn.intermediate);
+                if (conn.start === point || conn.end === point) {
                     if (!visited.has(conn.start)) queue.push(conn.start);
+                    if (!visited.has(conn.end)) queue.push(conn.end);
+                    if (conn.intermediate && !visited.has(conn.intermediate)) queue.push(conn.intermediate);
                 }
             });
         }
     }
+
+    return connectedPoints;
 }
 
 // Update connected status of all points
