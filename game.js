@@ -135,6 +135,14 @@ function updateConnectedPoints() {
         }
     });
 
+    // Recursive coloring based on the endpoint
+    connections.forEach(conn => {
+        if (conn.end.connected && !conn.start.connected) {
+            conn.start.connected = true;
+            connectedGraph.push(conn.start);
+        }
+    });
+
     // Check if all points are connected and stop the game if true
     if (checkAllConnected()) {
         setTimeout(() => {
