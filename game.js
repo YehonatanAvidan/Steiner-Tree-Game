@@ -12,7 +12,7 @@ let totalLength = 0;
 let isDragging = false;
 let dragStart = null;
 let dragEnd = null;
-let connectedGraph = []; // List of connected points
+let connectedGraph = []; // List of connected pointfs
 
 // Generate random points
 function generateRandomPoints() {
