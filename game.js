@@ -186,7 +186,9 @@ function colorConnectedPoints(startPoint) {
         const point = queue.shift();
         if (!visited.has(point)) {
             visited.add(point);
-            connectedGraph.push(point);
+            if (!connectedGraph.includes(point)) {
+                connectedGraph.push(point);
+            }
 
             // Add connected points to the queue
             connections.forEach(conn => {
