@@ -143,6 +143,12 @@ function addConnection(start, end) {
             }
         }
 
+        // Color the start point if the end point is already green
+        if (connectedGraph.includes(snappedEnd) && !connectedGraph.includes(snappedStart)) {
+            connectedGraph.push(snappedStart);
+            colorConnectedPoints(snappedStart);
+        }
+
         updateConnectedPoints();
     }
 }
@@ -169,6 +175,7 @@ function colorConnectedPoints(startPoint) {
         }
     }
 }
+
 
 // Update connected status of all points
 function updateConnectedPoints() {
