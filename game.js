@@ -158,23 +158,29 @@ function addConnection(start, end) {
 
 // Ensure all connected points are in connectedGraph
 function ensureAllConnectedPoints() {
-    let added;
+    let addedPoints;
     do {
-        added = false;
-        let currentConnectedGraph = [...connectedGraph]; // Clone the current state of connectedGraph
+        addedPoints = false;
 
-        currentConnectedGraph.forEach(point => {
+        // Create a copy of the current connectedGraph to iterate over
+        const currentConnected = [...connectedGraph];
+
+        currentConnected.forEach(point => {
             connections.forEach(conn => {
+                // Check if the start point is connected to the current point
                 if (conn.start === point && !connectedGraph.includes(conn.end)) {
                     connectedGraph.push(conn.end);
-                    added = true;
-                } else if (conn.end === point && !connectedGraph.includes(conn.start)) {
+                    addedPoints = true;
+                }
+
+                // Check if the end point is connected to the current point
+                if (conn.end === point && !connectedGraph.includes(conn.start)) {
                     connectedGraph.push(conn.start);
-                    added = true;
+                    addedPoints = true;
                 }
             });
         });
-    } while (added);
+    } while (addedPoints);
 }
 
 // Color all points connected to the given point
