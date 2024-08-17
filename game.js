@@ -116,8 +116,11 @@ function addConnection(start, end) {
     if (!points.some(p => p.x === snappedEnd.x && p.y === snappedEnd.y)) {
         const newPoint = { ...snappedEnd, connected: false, isIntermediate: true, id: points.length };
         points.push(newPoint);
+
+        // Color the new point green if the start point is already in connectedGraph
         if (connectedGraph.includes(snappedStart)) {
-            connectedGraph.push(newPoint); // Add intermediate point to connectedGraph
+            connectedGraph.push(newPoint);
+            colorConnectedPoints(newPoint);
         }
     }
 
@@ -133,12 +136,37 @@ function addConnection(start, end) {
                 const newPoint = { ...snappedEnd, connected: false, isIntermediate: true, id: points.length };
                 points.push(newPoint);
                 connectedGraph.push(newPoint);
+                colorConnectedPoints(newPoint);
             } else if (!connectedGraph.includes(snappedEnd)) {
                 connectedGraph.push(snappedEnd);
+                colorConnectedPoints(snappedEnd);
             }
         }
 
         updateConnectedPoints();
+    }
+}
+
+// Color all points connected to the given point
+function colorConnectedPoints(startPoint) {
+    const visited = new Set();
+    const queue = [startPoint];
+
+    while (queue.length > 0) {
+        const point = queue.shift();
+        if (!visited.has(point)) {
+            visited.add(point);
+            connectedGraph.push(point);
+
+            // Add connected points to the queue
+            connections.forEach(conn => {
+                if (conn.start === point && !visited.has(conn.end)) {
+                    queue.push(conn.end);
+                } else if (conn.end === point && !visited.has(conn.start)) {
+                    queue.push(conn.start);
+                }
+            });
+        }
     }
 }
 
