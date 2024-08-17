@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v5.2
+// Connect-the-Dots Game v5.3
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -14,6 +14,7 @@ let totalLength = 0;
 let isDragging = false;
 let dragStart = null;
 let dragEnd = null;
+let firstConnectedPoint = null; // Track the first connected point
 
 // Generate random points
 function generateRandomPoints() {
@@ -104,10 +105,14 @@ function addConnection(start, end) {
 
     // Add intermediate points if necessary
     if (!points.some(p => p.x === snappedStart.x && p.y === snappedStart.y)) {
-        points.push({ ...snappedStart, connected: false, isIntermediate: true });
+        const newPoint = { ...snappedStart, connected: false, isIntermediate: true, id: points.length };
+        points.push(newPoint);
+        firstConnectedPoint = firstConnectedPoint || newPoint; // Set the first connected point
     }
     if (!points.some(p => p.x === snappedEnd.x && p.y === snappedEnd.y)) {
-        points.push({ ...snappedEnd, connected: false, isIntermediate: true });
+        const newPoint = { ...snappedEnd, connected: false, isIntermediate: true, id: points.length };
+        points.push(newPoint);
+        firstConnectedPoint = firstConnectedPoint || newPoint; // Set the first connected point
     }
 
     connections.push({ start: snappedStart, end: snappedEnd });
@@ -121,18 +126,18 @@ function addConnection(start, end) {
 function updateConnectedPoints() {
     // Initialize an adjacency list to represent the graph
     let adjacencyList = points.map(() => []);
-    
+
     connections.forEach(conn => {
         let startPoint = points.find(p => distanceBetweenPoints(p, conn.start) <= POINT_RADIUS);
         let endPoint = points.find(p => distanceBetweenPoints(p, conn.end) <= POINT_RADIUS);
-        
+
         if (startPoint && endPoint) {
             adjacencyList[startPoint.id].push(endPoint.id);
             adjacencyList[endPoint.id].push(startPoint.id);
         }
     });
 
-    // Perform BFS or DFS to find all connected points starting from the first point
+    // Perform DFS to find all connected points starting from the first connected point
     let visited = new Set();
     function dfs(pointId) {
         visited.add(pointId);
@@ -143,8 +148,9 @@ function updateConnectedPoints() {
         });
     }
 
-    // Start DFS from the first point
-    dfs(0);
+    if (firstConnectedPoint) {
+        dfs(firstConnectedPoint.id);
+    }
 
     // Mark points as connected if they are in the visited set
     points.forEach(point => {
@@ -155,18 +161,6 @@ function updateConnectedPoints() {
 // Check if all points are connected
 function checkAllConnected() {
     return points.every(point => point.connected);
-}
-
-// Check if all lines are connected to points or other lines
-function checkAllLinesConnected() {
-    return connections.every(conn =>
-        points.some(p => distanceBetweenPoints(p, conn.start) <= POINT_RADIUS) &&
-        (points.some(p => distanceBetweenPoints(p, conn.end) <= POINT_RADIUS) ||
-            connections.some(c => c !== conn && (
-                distanceBetweenPoints(c.start, conn.end) <= SMALL_POINT_RADIUS ||
-                distanceBetweenPoints(c.end, conn.end) <= SMALL_POINT_RADIUS
-            )))
-    );
 }
 
 // Handle mouse down event
@@ -199,7 +193,7 @@ function handleMouseUp(event) {
         isDragging = false;
         if (dragStart && dragEnd) {
             addConnection(dragStart, dragEnd);
-            if (checkAllConnected() && checkAllLinesConnected()) {
+            if (checkAllConnected()) {
                 setTimeout(() => {
                     alert(`Congratulations! You've connected all points. Total Length: ${totalLength.toFixed(2)}`);
                 }, 100);
@@ -218,6 +212,7 @@ function handleMouseUp(event) {
 function resetGame() {
     totalLength = 0;
     scoreElement.textContent = `Total Length: 0`;
+    firstConnectedPoint = null;
     generateRandomPoints();
     connections = [];
     draw();
