@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v6.1
+// Connect-the-Dots Game v6.2
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -17,8 +17,6 @@ let dragEnd = null;
 let connectedGraph = []; // List to track connected points
 let initialScore = 0; // Variable to store the initial score
 let currentLevel = 1; // Current level, default to 1
-let retryData = null; // Store initial points and connections for retry
-let bestScore = null; // Store the best score for retries
 
 // Calculate number of points for a given level
 function getPointsForLevel(level) {
@@ -29,7 +27,7 @@ function getPointsForLevel(level) {
 function calculateCentroid(points) {
     const sum = points.reduce((acc, point) => ({
         x: acc.x + point.x,
-        y: acc.y + acc.y
+        y: acc.y + point.y
     }), { x: 0, y: 0 });
     return {
         x: sum.x / points.length,
@@ -39,7 +37,7 @@ function calculateCentroid(points) {
 
 // Calculate initial score
 function calculateInitialScore(points, centroid) {
-    return points.reduce((total, point) =>
+    return points.reduce((total, point) => 
         total + distanceBetweenPoints(point, centroid), 0) / 10; // Divide by 10
 }
 
@@ -57,7 +55,7 @@ function generateRandomPoints() {
 
         // Check if the new point is too close to any existing point
         const isTooClose = points.some(p => distanceBetweenPoints(p, newPoint) < minDistance);
-
+        
         if (!isTooClose) {
             points.push(newPoint);
         }
@@ -100,13 +98,6 @@ function draw() {
         ctx.moveTo(dragStart.x, dragStart.y);
         ctx.lineTo(dragEnd.x, dragEnd.y);
         ctx.stroke();
-    }
-
-    // Draw Best Score if it exists and retryData is present
-    if (retryData && bestScore !== null) {
-        ctx.font = '18px Arial';
-        ctx.fillStyle = 'black';
-        ctx.fillText(`Best Score: ${bestScore.toFixed(2)}`, 10, canvas.height - 10);
     }
 }
 
@@ -189,18 +180,7 @@ function checkGameEnd() {
     if (points.filter(p => !p.isIntermediate).every(point => connectedGraph.includes(point))) {
         setTimeout(() => {
             const finalScore = initialScore - totalLength;
-            if (retryData) {
-                if (bestScore === null || finalScore > bestScore) {
-                    bestScore = finalScore;
-                }
-            }
-
-            const retry = confirm(`Congratulations! You've connected all points. Final Score: ${finalScore.toFixed(2)}. Do you want to retry?`);
-            if (retry) {
-                resetGame(true); // Reset with retry
-            } else {
-                resetGame(false); // Regular reset
-            }
+            alert(`Congratulations! You've connected all points. Final Score: ${finalScore.toFixed(2)}`);
         }, 100);
         canvas.removeEventListener('mousedown', handleMouseDown);
         canvas.removeEventListener('mousemove', handleMouseMove);
@@ -253,29 +233,39 @@ function handleMouseUp(event) {
 }
 
 // Reset the game
-function resetGame(isRetry = false) {
-    if (isRetry && retryData) {
-        points = retryData.points;
-        connections = retryData.connections;
-        initialScore = retryData.initialScore;
-        connectedGraph = []; // Reset connected graph
-        totalLength = 0;
-        updateScore();
-    } else {
-        generateRandomPoints();
-        connections = [];
-        connectedGraph = []; // Reset connected graph
-        retryData = null; // Clear retry data
-        bestScore = null; // Clear best score
-    }
+function resetGame() {
+    generateRandomPoints();
+    connections = [];
+    connectedGraph = []; // Reset connected graph
     draw();
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', handleMouseUp);
+}
 
-    if (!isRetry) {
-        // Store initial points and connections for retry
-        retryData = {
-            points: JSON.parse(JSON.stringify(points)),
-            connections: [],
-            initial
+// Change level
+function changeLevel(level) {
+    currentLevel = level;
+    resetGame();
+}
+
+// Initialize the game
+function init() {
+    generateRandomPoints();
+    draw();
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
+    resetButton.addEventListener('click', resetGame);
+    
+    // Add event listeners for level buttons
+    levelButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const level = parseInt(button.dataset.level);
+            changeLevel(level);
+        });
+    });
+}
+
+// Start the game
+init();
