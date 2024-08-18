@@ -1,9 +1,11 @@
-// Connect-the-Dots Game v6.0
+// Connect-the-Dots Game v6.1
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreElement = document.getElementById('score');
+const bestScoreElement = document.getElementById('bestScore');
 const resetButton = document.getElementById('resetButton');
+const retryButton = document.getElementById('retryButton');
 const levelButtons = document.querySelectorAll('.level-button');
 const POINT_RADIUS = 15; // Large point size
 const SMALL_POINT_RADIUS = POINT_RADIUS / 2; // Size of endpoint dots
@@ -17,6 +19,14 @@ let dragEnd = null;
 let connectedGraph = []; // List to track connected points
 let initialScore = 0; // Variable to store the initial score
 let currentLevel = 1; // Current level, default to 1
+let currentSeed = null; // Current random seed
+let bestScores = {}; // Object to store best scores for each seed
+
+// Seeded random number generator
+function seededRandom(seed) {
+    let x = Math.sin(seed++) * 10000;
+    return x - Math.floor(x);
+}
 
 // Calculate number of points for a given level
 function getPointsForLevel(level) {
@@ -42,15 +52,23 @@ function calculateInitialScore(points, centroid) {
 }
 
 // Generate random points
-function generateRandomPoints() {
+function generateRandomPoints(seed = null) {
     points = [];
     connections = [];
     const N = getPointsForLevel(currentLevel);
     const minDistance = POINT_RADIUS * 2; // Minimum distance between points to avoid overlap
 
+    if (seed === null) {
+        currentSeed = Math.random();
+    } else {
+        currentSeed = seed;
+    }
+
+    let randomFunc = seededRandom.bind(null, currentSeed);
+
     while (points.length < N) {
-        const x = Math.random() * (canvas.width - 2 * POINT_RADIUS) + POINT_RADIUS;
-        const y = Math.random() * (canvas.height - 2 * POINT_RADIUS) + POINT_RADIUS;
+        const x = randomFunc() * (canvas.width - 2 * POINT_RADIUS) + POINT_RADIUS;
+        const y = randomFunc() * (canvas.height - 2 * POINT_RADIUS) + POINT_RADIUS;
         const newPoint = { x, y, id: points.length, isIntermediate: false };
 
         // Check if the new point is too close to any existing point
@@ -158,6 +176,16 @@ function updateScore() {
     scoreElement.textContent = `Score: ${currentScore.toFixed(2)}`;
 }
 
+// Update the best score
+function updateBestScore() {
+    const currentScore = initialScore - totalLength;
+    const seedKey = `${currentLevel}-${currentSeed}`;
+    if (!bestScores[seedKey] || currentScore > bestScores[seedKey]) {
+        bestScores[seedKey] = currentScore;
+    }
+    bestScoreElement.textContent = `Best Score: ${bestScores[seedKey].toFixed(2)}`;
+}
+
 // Update the connected graph
 function updateConnectedGraph() {
     let changed;
@@ -180,6 +208,7 @@ function checkGameEnd() {
     if (points.filter(p => !p.isIntermediate).every(point => connectedGraph.includes(point))) {
         setTimeout(() => {
             const finalScore = initialScore - totalLength;
+            updateBestScore();
             alert(`Congratulations! You've connected all points. Final Score: ${finalScore.toFixed(2)}`);
         }, 100);
         canvas.removeEventListener('mousedown', handleMouseDown);
@@ -238,6 +267,19 @@ function resetGame() {
     connections = [];
     connectedGraph = []; // Reset connected graph
     draw();
+    updateBestScore();
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
+}
+
+// Retry the game with the same seed
+function retryGame() {
+    generateRandomPoints(currentSeed);
+    connections = [];
+    connectedGraph = []; // Reset connected graph
+    draw();
+    updateBestScore();
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', handleMouseUp);
@@ -251,12 +293,9 @@ function changeLevel(level) {
 
 // Initialize the game
 function init() {
-    generateRandomPoints();
-    draw();
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseup', handleMouseUp);
+    resetGame();
     resetButton.addEventListener('click', resetGame);
+    retryButton.addEventListener('click', retryGame);
     
     // Add event listeners for level buttons
     levelButtons.forEach(button => {
