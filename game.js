@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v5.9
+// Connect-the-Dots Game v5.10
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -32,7 +32,7 @@ function calculateCentroid(points) {
 // Calculate initial score
 function calculateInitialScore(points, centroid) {
     return points.reduce((total, point) => 
-        total + distanceBetweenPoints(point, centroid), 0);
+        total + distanceBetweenPoints(point, centroid), 0) / 10; // Divide by 10
 }
 
 // Generate random points
@@ -92,13 +92,6 @@ function draw() {
         ctx.lineTo(dragEnd.x, dragEnd.y);
         ctx.stroke();
     }
-
-    // Draw centroid
-    const centroid = calculateCentroid(points.filter(p => !p.isIntermediate));
-    ctx.beginPath();
-    ctx.arc(centroid.x, centroid.y, SMALL_POINT_RADIUS, 0, Math.PI * 2);
-    ctx.fillStyle = 'red';
-    ctx.fill();
 }
 
 // Calculate distance between two points
@@ -136,7 +129,7 @@ function addConnection(start, end) {
     }
 
     connections.push({ start, end: endPoint });
-    totalLength += distanceBetweenPoints(start, endPoint);
+    totalLength += distanceBetweenPoints(start, endPoint) / 10; // Divide by 10
     updateScore();
 
     // Update connectedGraph
