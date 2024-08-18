@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v6.2
+// Connect-the-Dots Game v6.3
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -35,10 +35,46 @@ function calculateCentroid(points) {
     };
 }
 
-// Calculate initial score
+// Calculate initial score based on centroid
 function calculateInitialScore(points, centroid) {
     return points.reduce((total, point) => 
         total + distanceBetweenPoints(point, centroid), 0) / 10; // Divide by 10
+}
+
+// Calculate the total length of the MST using Prim's Algorithm
+function calculateMSTLength(points) {
+    const N = points.length;
+    const key = new Array(N).fill(Infinity); // Initialize key values to infinity
+    const inMST = new Array(N).fill(false); // Track points included in MST
+    key[0] = 0; // Start from the first point
+    let mstLength = 0;
+
+    for (let count = 0; count < N; count++) {
+        // Find the minimum key value point that is not yet included in MST
+        let minKey = Infinity;
+        let u = -1;
+
+        for (let v = 0; v < N; v++) {
+            if (!inMST[v] && key[v] < minKey) {
+                minKey = key[v];
+                u = v;
+            }
+        }
+
+        // Add the chosen point to the MST
+        inMST[u] = true;
+        mstLength += minKey;
+
+        // Update key values for adjacent points
+        for (let v = 0; v < N; v++) {
+            const dist = distanceBetweenPoints(points[u], points[v]);
+            if (!inMST[v] && dist < key[v]) {
+                key[v] = dist;
+            }
+        }
+    }
+
+    return mstLength;
 }
 
 // Generate random points
@@ -55,7 +91,7 @@ function generateRandomPoints() {
 
         // Check if the new point is too close to any existing point
         const isTooClose = points.some(p => distanceBetweenPoints(p, newPoint) < minDistance);
-        
+
         if (!isTooClose) {
             points.push(newPoint);
         }
@@ -63,7 +99,9 @@ function generateRandomPoints() {
 
     // Calculate initial score
     const centroid = calculateCentroid(points);
-    initialScore = calculateInitialScore(points, centroid);
+    const centroidScore = calculateInitialScore(points, centroid);
+    const mstLength = calculateMSTLength(points) / 10; // Scale the MST length
+    initialScore = Math.min(centroidScore, mstLength); // Use the smaller value as the initial score
     totalLength = 0;
     updateScore();
 }
@@ -236,36 +274,33 @@ function handleMouseUp(event) {
 function resetGame() {
     generateRandomPoints();
     connections = [];
-    connectedGraph = []; // Reset connected graph
-    draw();
+    totalLength = 0;
+    connectedGraph = [];
+    initialScore = 0;
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', handleMouseUp);
+    draw();
 }
 
-// Change level
-function changeLevel(level) {
+// Set the current level and reset the game
+function setLevel(level) {
     currentLevel = level;
     resetGame();
 }
 
 // Initialize the game
-function init() {
+function initGame() {
     generateRandomPoints();
-    draw();
+    resetButton.addEventListener('click', resetGame);
+    levelButtons.forEach(button => {
+        button.addEventListener('click', () => setLevel(parseInt(button.dataset.level)));
+    });
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', handleMouseUp);
-    resetButton.addEventListener('click', resetGame);
-    
-    // Add event listeners for level buttons
-    levelButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const level = parseInt(button.dataset.level);
-            changeLevel(level);
-        });
-    });
+    draw();
 }
 
 // Start the game
-init();
+initGame();
