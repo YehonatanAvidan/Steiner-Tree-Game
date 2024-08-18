@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Steiner Tree Game V1.02</title>
+    <title>Steiner Tree Game V1.03</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -23,12 +23,17 @@
             background-color: white;
             border: 1px solid #000;
         }
-        #score {
-            margin-top: 20px;
+        #score, #bestScore {
+            margin-top: 10px;
             font-size: 18px;
         }
-        #resetButton {
+        .button-container {
+            display: flex;
+            justify-content: center;
             margin-top: 20px;
+        }
+        button {
+            margin: 0 5px;
             padding: 10px 20px;
             font-size: 16px;
             cursor: pointer;
@@ -52,9 +57,10 @@
 </head>
 <body>
     <div class="game-container">
-        <h1>Steiner Tree Game V1.02</h1>
+        <h1>Steiner Tree Game V1.03</h1>
         <canvas id="gameCanvas" width="500" height="500"></canvas>
         <div id="score">Score: 0</div>
+        <div id="bestScore">Best Score: N/A</div>
         <div class="level-buttons">
             <button class="level-button" data-level="1">Level 1</button>
             <button class="level-button" data-level="2">Level 2</button>
@@ -62,7 +68,10 @@
             <button class="level-button" data-level="4">Level 4</button>
             <button class="level-button" data-level="5">Level 5</button>
         </div>
-        <button id="resetButton">Reset Game</button>
+        <div class="button-container">
+            <button id="resetButton">New Game</button>
+            <button id="retryButton">Retry</button>
+        </div>
     </div>
     <script src="game.js"></script>
 </body>
