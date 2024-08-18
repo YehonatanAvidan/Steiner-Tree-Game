@@ -15,14 +15,9 @@ let isDragging = false;
 let dragStart = null;
 let dragEnd = null;
 let connectedGraph = []; // List to track connected points
+let score = 0; // New variable to track the score
 
-// New variables for additional features
-let startTime;
-let timerInterval;
-let bestScore = Infinity;
-let difficulty = 'medium'; // 'easy', 'medium', 'hard'
-
-// Generate random points
+// Generate random points and calculate initial score
 function generateRandomPoints() {
     points = [];
     connections = [];
@@ -40,6 +35,30 @@ function generateRandomPoints() {
             points.push(newPoint);
         }
     }
+
+    calculateInitialScore();
+}
+
+// Calculate the centroid of all points
+function calculateCentroid() {
+    let sumX = 0, sumY = 0;
+    points.forEach(point => {
+        sumX += point.x;
+        sumY += point.y;
+    });
+    return { x: sumX / points.length, y: sumY / points.length };
+}
+
+// Calculate initial score based on distances from centroid
+function calculateInitialScore() {
+    const centroid = calculateCentroid();
+    score = points.reduce((sum, point) => sum + distanceBetweenPoints(centroid, point), 0);
+    updateScoreDisplay();
+}
+
+// Update score display
+function updateScoreDisplay() {
+    scoreElement.textContent = `Score: ${score.toFixed(2)}`;
 }
 
 // Draw all points and connections
@@ -63,6 +82,13 @@ function draw() {
         ctx.fillStyle = connectedGraph.includes(point) ? 'green' : (point.isIntermediate ? 'black' : 'blue');
         ctx.fill();
     });
+
+    // Draw centroid
+    const centroid = calculateCentroid();
+    ctx.beginPath();
+    ctx.arc(centroid.x, centroid.y, SMALL_POINT_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = 'red';
+    ctx.fill();
 
     // Draw drag line
     if (isDragging && dragStart && dragEnd) {
@@ -110,8 +136,10 @@ function addConnection(start, end) {
     }
 
     connections.push({ start, end: endPoint });
-    totalLength += distanceBetweenPoints(start, endPoint);
-    updateScore();
+    const connectionLength = distanceBetweenPoints(start, endPoint);
+    totalLength += connectionLength;
+    score -= connectionLength; // Reduce score by the length of the new connection
+    updateScoreDisplay();
 
     // Update connectedGraph
     if (connectedGraph.includes(start)) {
@@ -146,19 +174,9 @@ function updateConnectedGraph() {
 // Check if the game has ended
 function checkGameEnd() {
     if (points.every(point => connectedGraph.includes(point))) {
-        stopTimer();
-        const timeTaken = Math.floor((Date.now() - startTime) / 1000);
-        const currentScore = calculateScore(totalLength, timeTaken);
-        
-        if (currentScore < bestScore) {
-            bestScore = currentScore;
-            localStorage.setItem('bestScore', bestScore);
-        }
-        
         setTimeout(() => {
-            alert(`Congratulations! You've connected all points.\nTotal Length: ${totalLength.toFixed(2)}\nTime: ${timeTaken} seconds\nScore: ${currentScore}\nBest Score: ${bestScore}`);
+            alert(`Congratulations! You've connected all points.\nFinal Score: ${score.toFixed(2)}`);
         }, 100);
-        
         canvas.removeEventListener('mousedown', handleMouseDown);
         canvas.removeEventListener('mousemove', handleMouseMove);
         canvas.removeEventListener('mouseup', handleMouseUp);
@@ -219,8 +237,6 @@ function resetGame() {
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', handleMouseUp);
-    startTimer();
-    updateScore();
 }
 
 // Initialize the game
@@ -231,59 +247,6 @@ function init() {
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', handleMouseUp);
     resetButton.addEventListener('click', resetGame);
-    
-    // Load best score from localStorage
-    bestScore = parseInt(localStorage.getItem('bestScore')) || Infinity;
-    
-    // Set up difficulty selection
-    const difficultySelect = document.getElementById('difficultySelect');
-    difficultySelect.addEventListener('change', (e) => {
-        difficulty = e.target.value;
-        resetGame();
-    });
-    
-    startTimer();
-}
-
-// New function to start the timer
-function startTimer() {
-    startTime = Date.now();
-    if (timerInterval) clearInterval(timerInterval);
-    timerInterval = setInterval(updateTimer, 1000);
-}
-
-// New function to stop the timer
-function stopTimer() {
-    clearInterval(timerInterval);
-}
-
-// New function to update the timer display
-function updateTimer() {
-    const timeElapsed = Math.floor((Date.now() - startTime) / 1000);
-    document.getElementById('timer').textContent = `Time: ${timeElapsed}s`;
-}
-
-// New function to update the score display
-function updateScore() {
-    const timeElapsed = Math.floor((Date.now() - startTime) / 1000);
-    const currentScore = calculateScore(totalLength, timeElapsed);
-    scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)} | Score: ${currentScore}`;
-}
-
-// New function to calculate the score based on total length and time
-function calculateScore(length, time) {
-    let difficultyFactor;
-    switch (difficulty) {
-        case 'easy':
-            difficultyFactor = 0.8;
-            break;
-        case 'hard':
-            difficultyFactor = 1.2;
-            break;
-        default:
-            difficultyFactor = 1;
-    }
-    return Math.round((length * 10 + time) * difficultyFactor);
 }
 
 // Start the game
