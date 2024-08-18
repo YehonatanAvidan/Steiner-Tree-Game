@@ -15,9 +15,27 @@ let isDragging = false;
 let dragStart = null;
 let dragEnd = null;
 let connectedGraph = []; // List to track connected points
-let score = 0; // New variable to track the score
+let initialScore = 0; // New variable to store the initial score
 
-// Generate random points and calculate initial score
+// Calculate centroid of points
+function calculateCentroid(points) {
+    const sum = points.reduce((acc, point) => ({
+        x: acc.x + point.x,
+        y: acc.y + point.y
+    }), { x: 0, y: 0 });
+    return {
+        x: sum.x / points.length,
+        y: sum.y / points.length
+    };
+}
+
+// Calculate initial score
+function calculateInitialScore(points, centroid) {
+    return points.reduce((total, point) => 
+        total + distanceBetweenPoints(point, centroid), 0);
+}
+
+// Generate random points
 function generateRandomPoints() {
     points = [];
     connections = [];
@@ -36,29 +54,11 @@ function generateRandomPoints() {
         }
     }
 
-    calculateInitialScore();
-}
-
-// Calculate the centroid of all points
-function calculateCentroid() {
-    let sumX = 0, sumY = 0;
-    points.forEach(point => {
-        sumX += point.x;
-        sumY += point.y;
-    });
-    return { x: sumX / points.length, y: sumY / points.length };
-}
-
-// Calculate initial score based on distances from centroid
-function calculateInitialScore() {
-    const centroid = calculateCentroid();
-    score = points.reduce((sum, point) => sum + distanceBetweenPoints(centroid, point), 0);
-    updateScoreDisplay();
-}
-
-// Update score display
-function updateScoreDisplay() {
-    scoreElement.textContent = `Score: ${score.toFixed(2)}`;
+    // Calculate initial score
+    const centroid = calculateCentroid(points);
+    initialScore = calculateInitialScore(points, centroid);
+    totalLength = 0;
+    updateScore();
 }
 
 // Draw all points and connections
@@ -83,13 +83,6 @@ function draw() {
         ctx.fill();
     });
 
-    // Draw centroid
-    const centroid = calculateCentroid();
-    ctx.beginPath();
-    ctx.arc(centroid.x, centroid.y, SMALL_POINT_RADIUS, 0, Math.PI * 2);
-    ctx.fillStyle = 'red';
-    ctx.fill();
-
     // Draw drag line
     if (isDragging && dragStart && dragEnd) {
         ctx.strokeStyle = 'gray';
@@ -99,6 +92,13 @@ function draw() {
         ctx.lineTo(dragEnd.x, dragEnd.y);
         ctx.stroke();
     }
+
+    // Draw centroid
+    const centroid = calculateCentroid(points.filter(p => !p.isIntermediate));
+    ctx.beginPath();
+    ctx.arc(centroid.x, centroid.y, SMALL_POINT_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = 'red';
+    ctx.fill();
 }
 
 // Calculate distance between two points
@@ -136,10 +136,8 @@ function addConnection(start, end) {
     }
 
     connections.push({ start, end: endPoint });
-    const connectionLength = distanceBetweenPoints(start, endPoint);
-    totalLength += connectionLength;
-    score -= connectionLength; // Reduce score by the length of the new connection
-    updateScoreDisplay();
+    totalLength += distanceBetweenPoints(start, endPoint);
+    updateScore();
 
     // Update connectedGraph
     if (connectedGraph.includes(start)) {
@@ -152,6 +150,12 @@ function addConnection(start, end) {
 
     updateConnectedGraph();
     checkGameEnd();
+}
+
+// Update the score
+function updateScore() {
+    const currentScore = initialScore - totalLength;
+    scoreElement.textContent = `Score: ${currentScore.toFixed(2)}`;
 }
 
 // Update the connected graph
@@ -173,9 +177,10 @@ function updateConnectedGraph() {
 
 // Check if the game has ended
 function checkGameEnd() {
-    if (points.every(point => connectedGraph.includes(point))) {
+    if (points.filter(p => !p.isIntermediate).every(point => connectedGraph.includes(point))) {
         setTimeout(() => {
-            alert(`Congratulations! You've connected all points.\nFinal Score: ${score.toFixed(2)}`);
+            const finalScore = initialScore - totalLength;
+            alert(`Congratulations! You've connected all points. Final Score: ${finalScore.toFixed(2)}`);
         }, 100);
         canvas.removeEventListener('mousedown', handleMouseDown);
         canvas.removeEventListener('mousemove', handleMouseMove);
@@ -229,10 +234,9 @@ function handleMouseUp(event) {
 
 // Reset the game
 function resetGame() {
-    totalLength = 0;
-    connectedGraph = []; // Reset connected graph
     generateRandomPoints();
     connections = [];
+    connectedGraph = []; // Reset connected graph
     draw();
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
