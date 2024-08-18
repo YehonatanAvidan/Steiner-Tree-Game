@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v6.2
+// Connect-the-Dots Game
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -35,10 +35,47 @@ function calculateCentroid(points) {
     };
 }
 
-// Calculate initial score
-function calculateInitialScore(points, centroid) {
+// Calculate initial score based on distance from the centroid
+function calculateCentroidScore(points, centroid) {
     return points.reduce((total, point) => 
         total + distanceBetweenPoints(point, centroid), 0) / 10; // Divide by 10
+}
+
+// Calculate the MST length starting from the point furthest from the centroid
+function calculateMSTLength(points) {
+    let remainingPoints = [...points];
+    let connectedPoints = [];
+    let mstLength = 0;
+
+    // Find the point furthest from the centroid
+    const centroid = calculateCentroid(points);
+    let startPoint = remainingPoints.reduce((farthest, point) => 
+        distanceBetweenPoints(point, centroid) > distanceBetweenPoints(farthest, centroid) ? point : farthest, remainingPoints[0]);
+
+    connectedPoints.push(startPoint);
+    remainingPoints = remainingPoints.filter(p => p !== startPoint);
+
+    // Connect the remaining points
+    while (remainingPoints.length > 0) {
+        let closestPoint = null;
+        let closestDistance = Infinity;
+
+        connectedPoints.forEach(connectedPoint => {
+            remainingPoints.forEach(point => {
+                const dist = distanceBetweenPoints(connectedPoint, point);
+                if (dist < closestDistance) {
+                    closestDistance = dist;
+                    closestPoint = point;
+                }
+            });
+        });
+
+        mstLength += closestDistance;
+        connectedPoints.push(closestPoint);
+        remainingPoints = remainingPoints.filter(p => p !== closestPoint);
+    }
+
+    return mstLength / 10; // Divide by 10 for consistency with score calculation
 }
 
 // Generate random points
@@ -61,9 +98,13 @@ function generateRandomPoints() {
         }
     }
 
-    // Calculate initial score
+    // Calculate the initial score based on centroid and MST
     const centroid = calculateCentroid(points);
-    initialScore = calculateInitialScore(points, centroid);
+    const centroidScore = calculateCentroidScore(points, centroid);
+    const mstLength = calculateMSTLength(points);
+
+    // Set the initial score to the smaller of the two
+    initialScore = Math.min(centroidScore, mstLength);
     totalLength = 0;
     updateScore();
 }
@@ -243,29 +284,21 @@ function resetGame() {
     canvas.addEventListener('mouseup', handleMouseUp);
 }
 
-// Change level
-function changeLevel(level) {
+// Set the level and reset the game
+function setLevel(level) {
     currentLevel = level;
+    levelButtons.forEach(button => button.classList.remove('active'));
+    document.getElementById(`level${level}`).classList.add('active');
     resetGame();
 }
 
 // Initialize the game
-function init() {
-    generateRandomPoints();
-    draw();
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseup', handleMouseUp);
-    resetButton.addEventListener('click', resetGame);
-    
-    // Add event listeners for level buttons
+function initGame() {
     levelButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const level = parseInt(button.dataset.level);
-            changeLevel(level);
-        });
+        button.addEventListener('click', () => setLevel(parseInt(button.dataset.level)));
     });
+    resetButton.addEventListener('click', resetGame);
+    resetGame(); // Start with the default level
 }
 
-// Start the game
-init();
+initGame();
