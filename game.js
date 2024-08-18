@@ -1,4 +1,4 @@
-// Connect-the-Dots Game v5.9
+// Connect-the-Dots Game v5.8
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -25,7 +25,7 @@ function generateRandomPoints() {
     while (points.length < N) {
         const x = Math.random() * (canvas.width - 2 * POINT_RADIUS) + POINT_RADIUS;
         const y = Math.random() * (canvas.height - 2 * POINT_RADIUS) + POINT_RADIUS;
-        const newPoint = { x, y, connected: false, id: points.length, isIntermediate: false };
+        const newPoint = { x, y, id: points.length, isIntermediate: false };
 
         // Check if the new point is too close to any existing point
         const isTooClose = points.some(p => distanceBetweenPoints(p, newPoint) < minDistance);
@@ -46,26 +46,15 @@ function draw() {
     connections.forEach(conn => {
         ctx.beginPath();
         ctx.moveTo(conn.start.x, conn.start.y);
-        if (conn.intermediate) {
-            ctx.lineTo(conn.intermediate.x, conn.intermediate.y);
-        }
         ctx.lineTo(conn.end.x, conn.end.y);
         ctx.stroke();
-
-        // Draw small dot for intermediate point
-        if (conn.intermediate) {
-            ctx.fillStyle = connectedGraph.includes(conn.intermediate) ? 'green' : 'black';
-            ctx.beginPath();
-            ctx.arc(conn.intermediate.x, conn.intermediate.y, SMALL_POINT_RADIUS, 0, Math.PI * 2);
-            ctx.fill();
-        }
     });
 
     // Draw points
     points.forEach(point => {
         ctx.beginPath();
-        ctx.arc(point.x, point.y, POINT_RADIUS, 0, Math.PI * 2);
-        ctx.fillStyle = connectedGraph.includes(point) ? 'green' : 'blue';
+        ctx.arc(point.x, point.y, point.isIntermediate ? SMALL_POINT_RADIUS : POINT_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = connectedGraph.includes(point) ? 'green' : (point.isIntermediate ? 'black' : 'blue');
         ctx.fill();
     });
 
@@ -98,92 +87,59 @@ function findClosestPoint(point) {
         }
     });
 
-    connections.forEach(conn => {
-        if (conn.intermediate) {
-            const distanceToIntermediate = distanceBetweenPoints(point, conn.intermediate);
-            if (distanceToIntermediate < minDistance && distanceToIntermediate <= SNAP_DISTANCE) {
-                minDistance = distanceToIntermediate;
-                closestPoint = conn.intermediate;
-            }
-        }
-        const distanceToEnd = distanceBetweenPoints(point, conn.end);
-        if (distanceToEnd < minDistance && distanceToEnd <= SNAP_DISTANCE) {
-            minDistance = distanceToEnd;
-            closestPoint = conn.end;
-        }
-    });
-
     return closestPoint;
 }
 
 // Add a new connection
 function addConnection(start, end) {
-    // Snap start and end to closest points if within range
-    const snappedStart = findClosestPoint(start) || start;
     const snappedEnd = findClosestPoint(end) || end;
+    let endPoint;
 
-    // Create a new connection
-    const newConnection = { start: snappedStart, end: snappedEnd };
-
-    // Add intermediate point if snappedEnd is not an existing point
-    if (!points.some(p => p.x === snappedEnd.x && p.y === snappedEnd.y)) {
-        newConnection.intermediate = { ...snappedEnd, connected: false, isIntermediate: true, id: points.length };
+    if (snappedEnd === end) {
+        // Create a new intermediate point
+        endPoint = { x: end.x, y: end.y, id: points.length, isIntermediate: true };
+        points.push(endPoint);
+    } else {
+        endPoint = snappedEnd;
     }
 
-    // Ensure that the connection starts from an existing point
-    if (points.some(p => p.x === snappedStart.x && p.y === snappedStart.y)) {
-        connections.push(newConnection);
-        totalLength += distanceBetweenPoints(snappedStart, snappedEnd);
-        scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
+    connections.push({ start, end: endPoint });
+    totalLength += distanceBetweenPoints(start, endPoint);
+    scoreElement.textContent = `Total Length: ${totalLength.toFixed(2)}`;
 
-        // Update connected graph
-        updateConnectedGraph(snappedStart);
-        updateConnectedGraph(snappedEnd);
-        if (newConnection.intermediate) {
-            updateConnectedGraph(newConnection.intermediate);
+    // Update connectedGraph
+    if (connectedGraph.includes(start)) {
+        if (!connectedGraph.includes(endPoint)) {
+            connectedGraph.push(endPoint);
         }
-
-        updateConnectedPoints();
-    }
-}
-
-// Update connected graph starting from a given point
-function updateConnectedGraph(startPoint) {
-    if (!connectedGraph.includes(startPoint)) {
-        const connectedPoints = findAllConnectedPoints(startPoint);
-        connectedGraph.push(...connectedPoints);
-    }
-}
-
-// Find all points connected to the given point
-function findAllConnectedPoints(startPoint) {
-    const visited = new Set();
-    const queue = [startPoint];
-    const connectedPoints = [];
-
-    while (queue.length > 0) {
-        const point = queue.shift();
-        if (!visited.has(point)) {
-            visited.add(point);
-            connectedPoints.push(point);
-
-            connections.forEach(conn => {
-                if (conn.start === point || conn.end === point) {
-                    if (!visited.has(conn.start)) queue.push(conn.start);
-                    if (!visited.has(conn.end)) queue.push(conn.end);
-                    if (conn.intermediate && !visited.has(conn.intermediate)) queue.push(conn.intermediate);
-                }
-            });
-        }
+    } else if (connectedGraph.includes(endPoint)) {
+        connectedGraph.push(start);
     }
 
-    return connectedPoints;
+    updateConnectedGraph();
+    checkGameEnd();
 }
 
-// Update connected status of all points
-function updateConnectedPoints() {
-    // Check if all points are in the connected graph
-    if (checkAllConnected()) {
+// Update the connected graph
+function updateConnectedGraph() {
+    let changed;
+    do {
+        changed = false;
+        connections.forEach(conn => {
+            if (connectedGraph.includes(conn.start) && !connectedGraph.includes(conn.end)) {
+                connectedGraph.push(conn.end);
+                changed = true;
+            } else if (connectedGraph.includes(conn.end) && !connectedGraph.includes(conn.start)) {
+                connectedGraph.push(conn.start);
+                changed = true;
+            }
+        });
+    } while (changed);
+}
+
+// Check if the game has ended
+function checkGameEnd() {
+    if (points.every(point => connectedGraph.includes(point))) {
         setTimeout(() => {
             alert(`Congratulations! You've connected all points. Total Length: ${totalLength.toFixed(2)}`);
         }, 100);
@@ -191,11 +147,6 @@ function updateConnectedPoints() {
         canvas.removeEventListener('mousemove', handleMouseMove);
         canvas.removeEventListener('mouseup', handleMouseUp);
     }
-}
-
-// Check if all points are in the connected graph
-function checkAllConnected() {
-    return points.every(point => connectedGraph.includes(point));
 }
 
 // Handle mouse down event
