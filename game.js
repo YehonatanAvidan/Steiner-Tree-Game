@@ -1,10 +1,10 @@
-// Connect-the-Dots Game v5.10
+// Connect-the-Dots Game v6.0
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreElement = document.getElementById('score');
 const resetButton = document.getElementById('resetButton');
-const N = 10; // Number of random points
+const levelButtons = document.querySelectorAll('.level-button');
 const POINT_RADIUS = 15; // Large point size
 const SMALL_POINT_RADIUS = POINT_RADIUS / 2; // Size of endpoint dots
 const SNAP_DISTANCE = POINT_RADIUS * 1.5; // Distance to snap to points
@@ -15,7 +15,13 @@ let isDragging = false;
 let dragStart = null;
 let dragEnd = null;
 let connectedGraph = []; // List to track connected points
-let initialScore = 0; // New variable to store the initial score
+let initialScore = 0; // Variable to store the initial score
+let currentLevel = 1; // Current level, default to 1
+
+// Calculate number of points for a given level
+function getPointsForLevel(level) {
+    return 2 * level + 1;
+}
 
 // Calculate centroid of points
 function calculateCentroid(points) {
@@ -39,6 +45,7 @@ function calculateInitialScore(points, centroid) {
 function generateRandomPoints() {
     points = [];
     connections = [];
+    const N = getPointsForLevel(currentLevel);
     const minDistance = POINT_RADIUS * 2; // Minimum distance between points to avoid overlap
 
     while (points.length < N) {
@@ -236,6 +243,12 @@ function resetGame() {
     canvas.addEventListener('mouseup', handleMouseUp);
 }
 
+// Change level
+function changeLevel(level) {
+    currentLevel = level;
+    resetGame();
+}
+
 // Initialize the game
 function init() {
     generateRandomPoints();
@@ -244,6 +257,14 @@ function init() {
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', handleMouseUp);
     resetButton.addEventListener('click', resetGame);
+    
+    // Add event listeners for level buttons
+    levelButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const level = parseInt(button.dataset.level);
+            changeLevel(level);
+        });
+    });
 }
 
 // Start the game
