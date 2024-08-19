@@ -16,7 +16,8 @@ let dragStart = null;
 let dragEnd = null;
 let connectedGraph = []; // List to track connected points
 let initialScore = 0; // Variable to store the initial score
-let currentLevel = 1; // Current level, default to 1
+let currentLevel = 5; // Current level, default to 1
+
 
 // Calculate number of points for a given level
 function getPointsForLevel(level) {
@@ -78,6 +79,7 @@ function calculateMSTLength(points) {
     return mstLength / 10; // Divide by 10 for consistency with score calculation
 }
 
+
 // Generate random points
 function generateRandomPoints() {
     points = [];
@@ -107,7 +109,9 @@ function generateRandomPoints() {
     initialScore = Math.min(centroidScore, mstLength);
     totalLength = 0;
     updateScore();
+    clearActionHistory();
 }
+
 
 // Draw all points and connections
 function draw() {
@@ -190,6 +194,7 @@ function addConnection(start, end) {
     }
 
     updateConnectedGraph();
+    updateActionHistory();
     checkGameEnd();
 }
 
@@ -219,6 +224,7 @@ function updateConnectedGraph() {
 // Check if the game has ended
 function checkGameEnd() {
     if (points.filter(p => !p.isIntermediate).every(point => connectedGraph.includes(point))) {
+        submitHistory();
         setTimeout(() => {
             const finalScore = initialScore - totalLength;
             alert(`Congratulations! You've connected all points. Final Score: ${finalScore.toFixed(2)}`);
@@ -282,14 +288,6 @@ function resetGame() {
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', handleMouseUp);
-}
-
-// Set the level and reset the game
-function setLevel(level) {
-    currentLevel = level;
-    levelButtons.forEach(button => button.classList.remove('active'));
-    document.getElementById(`level${level}`).classList.add('active');
-    resetGame();
 }
 
 // Initialize the game
