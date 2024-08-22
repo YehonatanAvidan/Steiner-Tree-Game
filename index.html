@@ -6,71 +6,75 @@
     <title>Steiner Tree Game V1.04</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
-            background-color: #f0f0f0;
+            background-color: #e0e0e0;
+            color: #333;
         }
         .game-container {
             display: flex;
             flex-direction: column;
             align-items: center;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
         canvas {
-            background-color: white;
-            border: 1px solid #000;
+            background-color: #f9f9f9;
+            border: 2px solid #ddd;
+            border-radius: 4px;
         }
         #score {
             margin-top: 20px;
-            font-size: 18px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #444;
         }
         #resetButton {
             margin-top: 20px;
-            padding: 10px 20px;
+            padding: 10px 25px;
             font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #007BFF;
+            border: none;
+            border-radius: 4px;
             cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        #resetButton:hover {
+            background-color: #0056b3;
         }
         h1 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            color: #222;
             text-align: center;
-            color: #333;
-        }
-        .level-buttons {
-            display: flex;
-            justify-content: center;
-            margin-top: 20px;
-        }
-        .level-button {
-            margin: 0 5px;
-            padding: 5px 10px;
-            font-size: 14px;
-            cursor: pointer;
         }
         #instructions {
             margin-top: 10px;
             font-size: 16px;
             text-align: center;
-            color: #666;
+            color: #555;
+            line-height: 1.6;
         }
     </style>
 </head>
 <body>
     <div class="game-container">
-        <h1>Steiner Tree Game V1.04</h1>
+        <h1>Steiner Tree Game: Prove P=NP</h1>
         <div id="instructions">
-            Your goal is to connect all the dots by clicking on them and dragging the mouse to create lines. The highest score is awarded for the shortest total length of the lines that connect all the dots. Intermediate points may be useful in some cases. Good luck!
+            Your goal is to connect all the dots. If you’re feeling resourceful, add new points to craft a shorter path—just click and drag to create a line. <br>
+            The score at the bottom? That’s the computer’s best attempt, minus the lines you’ve used. Finish with a positive score, and you’ve quietly bested the machine. Quite satisfying, really. <br>
+            Good luck out there girls!
         </div>
         <canvas id="gameCanvas" width="500" height="500"></canvas>
         <div id="score">Score: 0</div>
-        <!-- <div class="level-buttons">
-            <button class="level-button" data-level="1">Level 1</button>
-            <button class="level-button" data-level="2">Level 2</button>
-            <button class="level-button" data-level="3">Level 3</button>
-            <button class="level-button" data-level="4">Level 4</button>
-            <button class="level-button" data-level="5">Level 5</button>
-        </div> -->
         <button id="resetButton">Reset Game</button>
     </div>
     <script src="history.js"></script>
