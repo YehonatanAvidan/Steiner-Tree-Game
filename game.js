@@ -16,8 +16,7 @@ let dragStart = null;
 let dragEnd = null;
 let connectedGraph = []; // List to track connected points
 let initialScore = 0; // Variable to store the initial score
-let currentLevel = 5; // Current level, default to 1
-
+let currentLevel = 5; // Current level, default to 5
 
 // Calculate number of points for a given level
 function getPointsForLevel(level) {
@@ -79,7 +78,6 @@ function calculateMSTLength(points) {
     return mstLength / 10; // Divide by 10 for consistency with score calculation
 }
 
-
 // Generate random points
 function generateRandomPoints() {
     points = [];
@@ -111,7 +109,6 @@ function generateRandomPoints() {
     updateScore();
     clearActionHistory();
 }
-
 
 // Draw all points and connections
 function draw() {
@@ -232,6 +229,9 @@ function checkGameEnd() {
         canvas.removeEventListener('mousedown', handleMouseDown);
         canvas.removeEventListener('mousemove', handleMouseMove);
         canvas.removeEventListener('mouseup', handleMouseUp);
+        canvas.removeEventListener('touchstart', handleTouchStart);
+        canvas.removeEventListener('touchmove', handleTouchMove);
+        canvas.removeEventListener('touchend', handleTouchEnd);
     }
 }
 
@@ -279,24 +279,101 @@ function handleMouseUp(event) {
     }
 }
 
-// Reset the game
-function resetGame() {
-    generateRandomPoints();
-    connections = [];
-    connectedGraph = []; // Reset connected graph
-    draw();
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseup', handleMouseUp);
+// Handle touch start event
+function handleTouchStart(event) {
+    const rect = canvas.getBoundingClientRect();
+    const touch = event.touches[0];
+    const touchPoint = {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+    };
+
+    const closestPoint = findClosestPoint(touchPoint);
+    if (closestPoint && distanceBetweenPoints(touchPoint, closestPoint) <= POINT_RADIUS) {
+        if (connectedGraph.length === 0) {
+            connectedGraph.push(closestPoint); // Add the first point to connectedGraph
+        }
+        dragStart = closestPoint;
+        isDragging = true;
+    }
 }
 
-// Initialize the game
+// Handle touch move event
+function handleTouchMove(event) {
+    if (isDragging) {
+        const rect = canvas.getBoundingClientRect();
+        const touch = event.touches[0];
+        dragEnd = {
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top
+        };
+        draw();
+    }
+}
+
+// Handle touch end event
+function handleTouchEnd(event) {
+    if (isDragging) {
+        isDragging = false;
+        if (dragStart && dragEnd) {
+            addConnection(dragStart, dragEnd);
+        }
+        dragStart = null;
+        dragEnd = null;
+        draw();
+    }
+}
+
+// Initialize touch and mouse events
 function initGame() {
     levelButtons.forEach(button => {
         button.addEventListener('click', () => setLevel(parseInt(button.dataset.level)));
     });
     resetButton.addEventListener('click', resetGame);
+
+    // Attach both mouse and touch events
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('touchstart', handleTouchStart);
+    canvas.addEventListener('touchmove', handleTouchMove);
+    canvas.addEventListener('touchend', handleTouchEnd);
+
     resetGame(); // Start with the default level
 }
 
+// Set the level
+function setLevel(level) {
+    currentLevel = level;
+    resetGame();
+}
+
+// Reset the game
+function resetGame() {
+    generateRandomPoints();
+    draw();
+}
+
+// Track actions history (for potential undo functionality)
+let actionHistory = [];
+
+function updateActionHistory() {
+    actionHistory.push({
+        points: JSON.parse(JSON.stringify(points)),
+        connections: JSON.parse(JSON.stringify(connections)),
+        totalLength: totalLength,
+        connectedGraph: [...connectedGraph]
+    });
+}
+
+function clearActionHistory() {
+    actionHistory = [];
+}
+
+// Submit the game history (placeholder for real submission logic)
+function submitHistory() {
+    console.log('Submitting game history:', actionHistory);
+}
+
+// Start the game
 initGame();
